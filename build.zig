@@ -1,7 +1,7 @@
 const std = @import("std");
 const sokol = @import("sokol");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -9,8 +9,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_zstbi = b.dependency("zstbi", .{});
     const dep_shdc = dep_sokol.builder.dependency("shdc", .{});
-    _ = dep_shdc;
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
@@ -19,6 +19,10 @@ pub fn build(b: *std.Build) void {
             .{
                 .name = "sokol",
                 .module = dep_sokol.module("sokol"),
+            },
+            .{
+                .name = "zstbi",
+                .module = dep_zstbi.module("root"),
             },
         },
     });
@@ -44,6 +48,7 @@ pub fn build(b: *std.Build) void {
     }
 
     const run_step = b.step("run", "Run the app");
+    try buildShader(b, dep_shdc, run_step, "display");
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
