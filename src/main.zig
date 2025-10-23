@@ -1,9 +1,23 @@
 const state = struct {
+    const sprites = struct {
+        var color_att_view: sg.View = .{};
+        var depth_att_view: sg.View = .{};
+        var color_tex_view: sg.View = .{};
+        var pip: sg.Pipeline = .{};
+        var bind: sg.Bindings = .{};
+        var pass_action: sg.PassAction = .{};
+    };
     const display = struct {
         var pip: sg.Pipeline = .{};
         var bind: sg.Bindings = .{};
         var pass_action: sg.PassAction = .{};
     };
+};
+
+const SpriteVertex = struct {
+    pos: [2]f32,
+    uv: [2]f32,
+    tex_idx: u32,
 };
 
 const DisplayVertex = struct {
@@ -13,6 +27,7 @@ const DisplayVertex = struct {
 
 const logical_width = 256.0;
 const logical_height = 196.0;
+const max_sprites = 10_000;
 
 export fn init() void {
     sg.setup(.{
@@ -20,8 +35,31 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    // Steps:
-    // Render to an offscreen view and then display it
+    state.sprites.bind.vertex_buffers[0] = sg.makeBuffer(.{
+        .size = @sizeOf(SpriteVertex) * max_sprites * 4,
+        .usage = .{
+            .vertex_buffer = true,
+            .dynamic_update = true,
+        },
+    });
+    var indices = std.mem.zeroes([max_sprites * 6]u16);
+    for (0..max_sprites) |n| {
+        const index_index = n * 6;
+        const vertex_index: u16 = @intCast(n * 4);
+        // Set the vertex index for each quad
+        // 0, 1, 2
+        // 1, 3, 2
+        indices[index_index + 0] = vertex_index + 0;
+        indices[index_index + 1] = vertex_index + 1;
+        indices[index_index + 2] = vertex_index + 2;
+        indices[index_index + 3] = vertex_index + 1;
+        indices[index_index + 4] = vertex_index + 3;
+        indices[index_index + 5] = vertex_index + 2;
+    }
+    state.sprites.bind.index_buffer = sg.makeBuffer(.{
+        .data = sg.asRange(&indices),
+        .usage = .{ .index_buffer = true },
+    });
 
     const display_vertices = [_]DisplayVertex{
         .{ .pos = .{ 0.0, logical_height }, .uv = .{ 0.0, 1.0 } }, // bottom-left
@@ -46,7 +84,7 @@ export fn init() void {
     zstbi.init(allocator);
 
     var tilemap = zstbi.Image.loadFromFile("src/assets/tilemap.png", 4) catch unreachable;
-    std.debug.print("{}px by {}px\n{} by {} tiles\n", .{
+    std.debug.print("Tilemap Tiles\n{}px by {}px\n{} by {} tiles\n\n", .{
         tilemap.width,
         tilemap.height,
         tilemap.width / 16,
@@ -61,6 +99,54 @@ export fn init() void {
         .data = tilemap_image_data,
     });
 
+    var characters = zstbi.Image.loadFromFile("src/assets/characters.png", 4) catch unreachable;
+    std.debug.print("Characters Tiles\n{}px by {}px\n{} by {} tiles\n\n", .{
+        characters.width,
+        characters.height,
+        characters.width / 16,
+        characters.height / 16,
+    });
+    defer characters.deinit();
+    var characters_image_data: sg.ImageData = .{};
+    characters_image_data.mip_levels[0] = sg.asRange(characters.data);
+    const characters_image: sg.Image = sg.makeImage(.{
+        .width = @as(i32, @intCast(characters.width)),
+        .height = @as(i32, @intCast(characters.height)),
+        .data = characters_image_data,
+    });
+
+    var interface = zstbi.Image.loadFromFile("src/assets/interface.png", 4) catch unreachable;
+    std.debug.print("Interface Tiles\n{}px by {}px\n{} by {} tiles\n\n", .{
+        interface.width,
+        interface.height,
+        interface.width / 16,
+        interface.height / 16,
+    });
+    defer interface.deinit();
+    var interface_image_data: sg.ImageData = .{};
+    interface_image_data.mip_levels[0] = sg.asRange(interface.data);
+    const interface_image: sg.Image = sg.makeImage(.{
+        .width = @as(i32, @intCast(interface.width)),
+        .height = @as(i32, @intCast(interface.height)),
+        .data = interface_image_data,
+    });
+
+    state.sprites.bind.views[0] = sg.makeView(.{
+        .texture = .{ .image = tilemap_image },
+    });
+    state.sprites.bind.views[1] = sg.makeView(.{
+        .texture = .{ .image = characters_image },
+    });
+    state.sprites.bind.views[2] = sg.makeView(.{
+        .texture = .{ .image = interface_image },
+    });
+    state.sprites.bind.samplers[0] = sg.makeSampler(.{
+        .min_filter = .NEAREST,
+        .mag_filter = .NEAREST,
+        .wrap_u = .CLAMP_TO_EDGE,
+        .wrap_v = .CLAMP_TO_EDGE,
+    });
+
     state.display.bind.views[0] = sg.makeView(.{
         .texture = .{ .image = tilemap_image },
     });
@@ -71,10 +157,77 @@ export fn init() void {
         .wrap_v = .REPEAT,
     });
 
+    var sprite_image_desc: sg.ImageDesc = .{
+        .width = @intFromFloat(logical_width),
+        .height = @intFromFloat(logical_height),
+        .pixel_format = .RGBA8,
+        .sample_count = 1,
+        .usage = .{ .color_attachment = true },
+    };
+    const color_image = sg.makeImage(sprite_image_desc);
+    sprite_image_desc.pixel_format = .DEPTH;
+    sprite_image_desc.usage = .{ .depth_stencil_attachment = true };
+    const depth_image = sg.makeImage(sprite_image_desc);
+
+    state.sprites.color_att_view = sg.makeView(.{
+        .color_attachment = .{
+            .image = color_image,
+        },
+    });
+    state.sprites.depth_att_view = sg.makeView(.{
+        .depth_stencil_attachment = .{
+            .image = depth_image,
+        },
+    });
+    state.sprites.color_tex_view = sg.makeView(.{
+        .texture = .{
+            .image = color_image,
+        },
+    });
+
+    state.sprites.pass_action.colors[0] = .{
+        .load_action = .CLEAR,
+        .clear_value = .{ .r = 1.0, .g = 0.0, .b = 0.0 },
+    };
+
     state.display.pass_action.colors[0] = .{
         .load_action = .CLEAR,
-        .clear_value = .{ .r = 0.25, .g = 0.5, .b = 0.75 },
+        .clear_value = .{ .r = 0.0, .g = 0.0, .b = 1.0 },
     };
+
+    state.sprites.pip = sg.makePipeline(.{
+        .shader = sg.makeShader(sprites_shader.spritesShaderDesc(sg.queryBackend())),
+        .layout = init: {
+            var l = sg.VertexLayoutState{};
+            l.attrs[sprites_shader.ATTR_sprites_position] = .{ .format = .FLOAT2, .offset = @offsetOf(SpriteVertex, "pos") };
+            l.attrs[sprites_shader.ATTR_sprites_texcoord] = .{ .format = .FLOAT2, .offset = @offsetOf(SpriteVertex, "uv") };
+            l.attrs[sprites_shader.ATTR_sprites_texidx] = .{ .format = .INT, .offset = @offsetOf(SpriteVertex, "tex_idx") };
+            break :init l;
+        },
+        .index_type = .UINT16,
+        .cull_mode = .NONE,
+        .sample_count = 1,
+        .depth = .{
+            .pixel_format = .DEPTH,
+            .compare = .ALWAYS,
+            .write_enabled = false,
+        },
+        .colors = init: {
+            // Try @splat
+            var c: [8]sg.ColorTargetState = @splat(.{});
+            c[0].pixel_format = .RGBA8;
+            c[0].blend = .{
+                .enabled = true,
+                .src_factor_rgb = .SRC_ALPHA,
+                .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
+                .op_rgb = .ADD,
+                .src_factor_alpha = .ONE,
+                .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
+                .op_alpha = .ADD,
+            };
+            break :init c;
+        },
+    });
 
     state.display.pip = sg.makePipeline(.{
         .shader = sg.makeShader(display_shader.displayShaderDesc(sg.queryBackend())),
@@ -109,11 +262,56 @@ export fn frame() void {
     _ = dt;
 
     sg.beginPass(.{
+        .action = state.sprites.pass_action,
+        .attachments = .{
+            .colors = init: {
+                var c: [8]sg.View = @splat(.{});
+                c[0] = state.sprites.color_att_view;
+                break :init c;
+            },
+            .depth_stencil = state.sprites.depth_att_view,
+        },
+    });
+    sg.applyPipeline(state.sprites.pip);
+    sg.applyBindings(state.sprites.bind);
+    const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
+    sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
+    // Update buffers
+    var sprite_vertex_data: [max_sprites * 4]SpriteVertex = std.mem.zeroes([max_sprites * 4]SpriteVertex);
+    // Bottom-left
+    sprite_vertex_data[0] = .{
+        .pos = .{ 0.0, 32.0 },
+        .uv = .{ 0.0, 1.0 },
+        .tex_idx = 2,
+    };
+    // Bottom-right
+    sprite_vertex_data[1] = .{
+        .pos = .{ 32.0, 32.0 },
+        .uv = .{ 1.0, 1.0 },
+        .tex_idx = 2,
+    };
+    // Top-left
+    sprite_vertex_data[2] = .{
+        .pos = .{ 0.0, 0.0 },
+        .uv = .{ 0.0, 0.0 },
+        .tex_idx = 2,
+    };
+    // Top-right
+    sprite_vertex_data[3] = .{
+        .pos = .{ 32.0, 0.0 },
+        .uv = .{ 1.0, 0.0 },
+        .tex_idx = 2,
+    };
+    sg.updateBuffer(state.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..4]));
+    sg.draw(0, 6, 1);
+    sg.endPass();
+
+    sg.beginPass(.{
         .action = state.display.pass_action,
         .swapchain = sglue.swapchain(),
     });
-
     sg.applyPipeline(state.display.pip);
+    state.display.bind.views[0] = state.sprites.color_tex_view;
     sg.applyBindings(state.display.bind);
     const mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 1.0);
     sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&mvp));
@@ -150,5 +348,6 @@ const sglue = sokol.glue;
 const slog = sokol.log;
 const zstbi = @import("zstbi");
 const display_shader = @import("shaders/display.zig");
+const sprites_shader = @import("shaders/sprites.zig");
 const math = @import("math.zig");
 const Mat4 = math.Mat4;
