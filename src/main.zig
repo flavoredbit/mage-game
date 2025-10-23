@@ -1,7 +1,6 @@
-const state = struct {
+const render = struct {
     const sprites = struct {
-        var color_att_view: sg.View = .{};
-        var depth_att_view: sg.View = .{};
+        var attachments: sg.Attachments = .{};
         var color_tex_view: sg.View = .{};
         var pip: sg.Pipeline = .{};
         var bind: sg.Bindings = .{};
@@ -35,7 +34,7 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    state.sprites.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    render.sprites.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .size = @sizeOf(SpriteVertex) * max_sprites * 4,
         .usage = .{
             .vertex_buffer = true,
@@ -56,23 +55,24 @@ export fn init() void {
         indices[index_index + 4] = vertex_index + 3;
         indices[index_index + 5] = vertex_index + 2;
     }
-    state.sprites.bind.index_buffer = sg.makeBuffer(.{
+    render.sprites.bind.index_buffer = sg.makeBuffer(.{
         .data = sg.asRange(&indices),
         .usage = .{ .index_buffer = true },
     });
 
+    // TODO: Make this a full screen normalized quad.
     const display_vertices = [_]DisplayVertex{
         .{ .pos = .{ 0.0, logical_height }, .uv = .{ 0.0, 1.0 } }, // bottom-left
         .{ .pos = .{ 0.0, 0.0 }, .uv = .{ 0.0, 0.0 } }, // top-left
-        .{ .pos = .{ logical_width, logical_height }, .uv = .{ 1.0, 1.0 } }, // bottom-right
-        .{ .pos = .{ logical_width, 0.0 }, .uv = .{ 1.0, 0.0 } }, // top-right
+        .{ .pos = .{ logical_width / 2.0, logical_height }, .uv = .{ 1.0, 1.0 } }, // bottom-right
+        .{ .pos = .{ logical_width / 2.0, 0.0 }, .uv = .{ 1.0, 0.0 } }, // top-right
     };
     const display_indices = [_]u16{ 0, 1, 2, 1, 3, 2 };
-    state.display.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    render.display.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&display_vertices),
         .usage = .{ .vertex_buffer = true },
     });
-    state.display.bind.index_buffer = sg.makeBuffer(.{
+    render.display.bind.index_buffer = sg.makeBuffer(.{
         .data = sg.asRange(&display_indices),
         .usage = .{ .index_buffer = true },
     });
@@ -131,26 +131,23 @@ export fn init() void {
         .data = interface_image_data,
     });
 
-    state.sprites.bind.views[0] = sg.makeView(.{
+    render.sprites.bind.views[0] = sg.makeView(.{
         .texture = .{ .image = tilemap_image },
     });
-    state.sprites.bind.views[1] = sg.makeView(.{
+    render.sprites.bind.views[1] = sg.makeView(.{
         .texture = .{ .image = characters_image },
     });
-    state.sprites.bind.views[2] = sg.makeView(.{
+    render.sprites.bind.views[2] = sg.makeView(.{
         .texture = .{ .image = interface_image },
     });
-    state.sprites.bind.samplers[0] = sg.makeSampler(.{
+    render.sprites.bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .NEAREST,
         .mag_filter = .NEAREST,
         .wrap_u = .CLAMP_TO_EDGE,
         .wrap_v = .CLAMP_TO_EDGE,
     });
 
-    state.display.bind.views[0] = sg.makeView(.{
-        .texture = .{ .image = tilemap_image },
-    });
-    state.display.bind.samplers[0] = sg.makeSampler(.{
+    render.display.bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .NEAREST,
         .mag_filter = .NEAREST,
         .wrap_u = .REPEAT,
@@ -169,33 +166,42 @@ export fn init() void {
     sprite_image_desc.usage = .{ .depth_stencil_attachment = true };
     const depth_image = sg.makeImage(sprite_image_desc);
 
-    state.sprites.color_att_view = sg.makeView(.{
+    const color_att_view = sg.makeView(.{
         .color_attachment = .{
             .image = color_image,
         },
     });
-    state.sprites.depth_att_view = sg.makeView(.{
+    const depth_att_view = sg.makeView(.{
         .depth_stencil_attachment = .{
             .image = depth_image,
         },
     });
-    state.sprites.color_tex_view = sg.makeView(.{
+    render.sprites.attachments = .{
+        .colors = init: {
+            var c: [8]sg.View = @splat(.{});
+            c[0] = color_att_view;
+            break :init c;
+        },
+        .depth_stencil = depth_att_view,
+    };
+
+    render.display.bind.views[0] = sg.makeView(.{
         .texture = .{
             .image = color_image,
         },
     });
 
-    state.sprites.pass_action.colors[0] = .{
+    render.sprites.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = .{ .r = 1.0, .g = 0.0, .b = 0.0 },
     };
 
-    state.display.pass_action.colors[0] = .{
+    render.display.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = .{ .r = 0.0, .g = 0.0, .b = 1.0 },
     };
 
-    state.sprites.pip = sg.makePipeline(.{
+    render.sprites.pip = sg.makePipeline(.{
         .shader = sg.makeShader(sprites_shader.spritesShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -229,7 +235,7 @@ export fn init() void {
         },
     });
 
-    state.display.pip = sg.makePipeline(.{
+    render.display.pip = sg.makePipeline(.{
         .shader = sg.makeShader(display_shader.displayShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -262,18 +268,11 @@ export fn frame() void {
     _ = dt;
 
     sg.beginPass(.{
-        .action = state.sprites.pass_action,
-        .attachments = .{
-            .colors = init: {
-                var c: [8]sg.View = @splat(.{});
-                c[0] = state.sprites.color_att_view;
-                break :init c;
-            },
-            .depth_stencil = state.sprites.depth_att_view,
-        },
+        .action = render.sprites.pass_action,
+        .attachments = render.sprites.attachments,
     });
-    sg.applyPipeline(state.sprites.pip);
-    sg.applyBindings(state.sprites.bind);
+    sg.applyPipeline(render.sprites.pip);
+    sg.applyBindings(render.sprites.bind);
     const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
     sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
     // Update buffers
@@ -302,18 +301,18 @@ export fn frame() void {
         .uv = .{ 1.0, 0.0 },
         .tex_idx = 2,
     };
-    sg.updateBuffer(state.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..4]));
+    sg.updateBuffer(render.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..4]));
     sg.draw(0, 6, 1);
     sg.endPass();
 
     sg.beginPass(.{
-        .action = state.display.pass_action,
+        .action = render.display.pass_action,
         .swapchain = sglue.swapchain(),
     });
-    sg.applyPipeline(state.display.pip);
-    state.display.bind.views[0] = state.sprites.color_tex_view;
-    sg.applyBindings(state.display.bind);
-    const mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 1.0);
+    sg.applyPipeline(render.display.pip);
+    sg.applyBindings(render.display.bind);
+    // TODO: This mvp is unnecessary.
+    const mvp: Mat4 = .ortho(0.0, logical_width, 0.0, logical_height, -1.0, 1.0);
     sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&mvp));
     sg.draw(0, 6, 1);
     sg.endPass();
