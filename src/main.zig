@@ -24,6 +24,7 @@ const DisplayVertex = struct {
     uv: [2]f32,
 };
 
+const tile_size = 16;
 const logical_width = 256.0;
 const logical_height = 196.0;
 const max_sprites = 10_000;
@@ -64,8 +65,8 @@ export fn init() void {
     const display_vertices = [_]DisplayVertex{
         .{ .pos = .{ 0.0, logical_height }, .uv = .{ 0.0, 1.0 } }, // bottom-left
         .{ .pos = .{ 0.0, 0.0 }, .uv = .{ 0.0, 0.0 } }, // top-left
-        .{ .pos = .{ logical_width / 2.0, logical_height }, .uv = .{ 1.0, 1.0 } }, // bottom-right
-        .{ .pos = .{ logical_width / 2.0, 0.0 }, .uv = .{ 1.0, 0.0 } }, // top-right
+        .{ .pos = .{ logical_width, logical_height }, .uv = .{ 1.0, 1.0 } }, // bottom-right
+        .{ .pos = .{ logical_width, 0.0 }, .uv = .{ 1.0, 0.0 } }, // top-right
     };
     const display_indices = [_]u16{ 0, 1, 2, 1, 3, 2 };
     render.display.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -263,6 +264,62 @@ export fn input(e: ?*const sapp.Event) void {
     }
 }
 
+const Spritesheet = enum { tilemap, character, interface };
+
+fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32) [4]SpriteVertex {
+    _ = frame_x;
+    _ = frame_y;
+
+    var spritesheet_width: f32 = undefined;
+    var spritesheet_height: f32 = undefined;
+    switch (spritesheet) {
+        .tilemap => {
+            spritesheet_width = 288.0;
+            spritesheet_height = 208.0;
+        },
+        .character => {
+            spritesheet_width = 432.0;
+            spritesheet_height = 288.0;
+        },
+        .interface => {
+            spritesheet_width = 288.0;
+            spritesheet_height = 176.0;
+        },
+    }
+
+    const world_x = @as(f32, @floatFromInt(x)) * tile_size;
+    const world_y = @as(f32, @floatFromInt(y)) * tile_size;
+
+    const tex_idx = @intFromEnum(spritesheet);
+    var vertices: [4]SpriteVertex = undefined;
+    // Bottom-left
+    vertices[0] = .{
+        .pos = .{ world_x, world_y + tile_size },
+        .uv = .{ 0.0, 1.0 },
+        .tex_idx = tex_idx,
+    };
+    // Bottom-right
+    vertices[1] = .{
+        .pos = .{ world_x + tile_size, world_y + tile_size },
+        .uv = .{ 1.0, 1.0 },
+        .tex_idx = tex_idx,
+    };
+    // Top-left
+    vertices[2] = .{
+        .pos = .{ world_x, world_y },
+        .uv = .{ 0.0, 0.0 },
+        .tex_idx = tex_idx,
+    };
+    // Top-right
+    vertices[3] = .{
+        .pos = .{ world_x + tile_size, world_y },
+        .uv = .{ 1.0, 0.0 },
+        .tex_idx = tex_idx,
+    };
+
+    return vertices;
+}
+
 export fn frame() void {
     const dt: f32 = @floatCast(sapp.frameDuration() * 60);
     _ = dt;
@@ -301,8 +358,11 @@ export fn frame() void {
         .uv = .{ 1.0, 0.0 },
         .tex_idx = 2,
     };
-    sg.updateBuffer(render.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..4]));
-    sg.draw(0, 6, 1);
+
+    sprite_vertex_data[4..][0..4].* = drawTile(.tilemap, 2, 2, 0, 0);
+
+    sg.updateBuffer(render.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..8]));
+    sg.draw(0, 12, 1);
     sg.endPass();
 
     sg.beginPass(.{
