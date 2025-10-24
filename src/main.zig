@@ -267,9 +267,6 @@ export fn input(e: ?*const sapp.Event) void {
 const Spritesheet = enum { tilemap, character, interface };
 
 fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32) [4]SpriteVertex {
-    _ = frame_x;
-    _ = frame_y;
-
     var spritesheet_width: f32 = undefined;
     var spritesheet_height: f32 = undefined;
     switch (spritesheet) {
@@ -290,33 +287,38 @@ fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32
     const world_x = @as(f32, @floatFromInt(x)) * tile_size;
     const world_y = @as(f32, @floatFromInt(y)) * tile_size;
 
+    // Frame coordinates are in normalized UV space from [0.0, 1.0]
+    const frame_u = @as(f32, @floatFromInt(frame_x)) * tile_size / spritesheet_width;
+    const frame_v = @as(f32, @floatFromInt(frame_y)) * tile_size / spritesheet_height;
+    const frame_w = tile_size / spritesheet_width;
+    const frame_h = tile_size / spritesheet_height;
+
     const tex_idx = @intFromEnum(spritesheet);
     var vertices: [4]SpriteVertex = undefined;
     // Bottom-left
     vertices[0] = .{
         .pos = .{ world_x, world_y + tile_size },
-        .uv = .{ 0.0, 1.0 },
+        .uv = .{ frame_u, frame_v + frame_h },
         .tex_idx = tex_idx,
     };
     // Bottom-right
     vertices[1] = .{
         .pos = .{ world_x + tile_size, world_y + tile_size },
-        .uv = .{ 1.0, 1.0 },
+        .uv = .{ frame_u + frame_w, frame_v + frame_h },
         .tex_idx = tex_idx,
     };
     // Top-left
     vertices[2] = .{
         .pos = .{ world_x, world_y },
-        .uv = .{ 0.0, 0.0 },
+        .uv = .{ frame_u, frame_v },
         .tex_idx = tex_idx,
     };
     // Top-right
     vertices[3] = .{
         .pos = .{ world_x + tile_size, world_y },
-        .uv = .{ 1.0, 0.0 },
+        .uv = .{ frame_u + frame_w, frame_v },
         .tex_idx = tex_idx,
     };
-
     return vertices;
 }
 
@@ -334,6 +336,8 @@ export fn frame() void {
     sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
     // Update buffers
     var sprite_vertex_data: [max_sprites * 4]SpriteVertex = std.mem.zeroes([max_sprites * 4]SpriteVertex);
+    var sprite_count: u32 = 0;
+
     // Bottom-left
     sprite_vertex_data[0] = .{
         .pos = .{ 0.0, 32.0 },
@@ -358,11 +362,13 @@ export fn frame() void {
         .uv = .{ 1.0, 0.0 },
         .tex_idx = 2,
     };
+    sprite_count += 1;
 
     sprite_vertex_data[4..][0..4].* = drawTile(.tilemap, 2, 2, 0, 0);
+    sprite_count += 1;
 
     sg.updateBuffer(render.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..8]));
-    sg.draw(0, 12, 1);
+    sg.draw(0, sprite_count * 6, 1);
     sg.endPass();
 
     sg.beginPass(.{
