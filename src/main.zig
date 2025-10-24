@@ -322,6 +322,9 @@ fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32
     return vertices;
 }
 
+const FrameLookup = std.StaticStringMap([2]i32);
+var letters: FrameLookup = undefined;
+
 export fn frame() void {
     const dt: f32 = @floatCast(sapp.frameDuration() * 60);
     _ = dt;
@@ -367,7 +370,26 @@ export fn frame() void {
     sprite_vertex_data[4..][0..4].* = drawTile(.tilemap, 2, 2, 0, 0);
     sprite_count += 1;
 
-    sg.updateBuffer(render.sprites.bind.vertex_buffers[0], sg.asRange(sprite_vertex_data[0..8]));
+    sprite_vertex_data[8..][0..4].* = drawTile(.interface, 3, 3, 0, 9);
+    sprite_count += 1;
+
+    var ui_x: i32 = 4;
+    const ui_y = 4;
+    for ("aaaaaa") |char| {
+        const str = &[_]u8{char};
+        const letter_frame = letters.get(str);
+        if (letter_frame) |l| {
+            const x, const y = l;
+            sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(.interface, ui_x, ui_y, x, y);
+            ui_x += 1;
+            sprite_count += 1;
+        }
+    }
+
+    sg.updateBuffer(
+        render.sprites.bind.vertex_buffers[0],
+        sg.asRange(sprite_vertex_data[0 .. sprite_count * 4]),
+    );
     sg.draw(0, sprite_count * 6, 1);
     sg.endPass();
 
@@ -381,8 +403,8 @@ export fn frame() void {
     const mvp: Mat4 = .ortho(0.0, logical_width, 0.0, logical_height, -1.0, 1.0);
     sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&mvp));
     sg.draw(0, 6, 1);
-    sg.endPass();
 
+    sg.endPass();
     sg.commit();
 }
 
@@ -391,6 +413,8 @@ export fn cleanup() void {
 }
 
 pub fn main() !void {
+    letters = FrameLookup.initComptime(.{.{ "a", .{ 0, 9 } }});
+
     sapp.run(.{
         .init_cb = init,
         .event_cb = input,
