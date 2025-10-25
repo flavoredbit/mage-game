@@ -27,7 +27,7 @@ const DisplayVertex = struct {
 const tile_size = 16;
 const logical_width = 256.0;
 const logical_height = 196.0;
-const max_sprites = 10_000;
+const max_sprites = 1_000;
 
 export fn init() void {
     sg.setup(.{
@@ -266,7 +266,7 @@ export fn input(e: ?*const sapp.Event) void {
 
 const Spritesheet = enum { tilemap, character, interface };
 
-fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32) [4]SpriteVertex {
+fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: i32, frame_y: i32) [4]SpriteVertex {
     var spritesheet_width: f32 = undefined;
     var spritesheet_height: f32 = undefined;
     switch (spritesheet) {
@@ -284,8 +284,8 @@ fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32
         },
     }
 
-    const world_x = @as(f32, @floatFromInt(x)) * tile_size;
-    const world_y = @as(f32, @floatFromInt(y)) * tile_size;
+    const world_x = x * tile_size;
+    const world_y = y * tile_size;
 
     // Frame coordinates are in normalized UV space from [0.0, 1.0]
     const frame_u = @as(f32, @floatFromInt(frame_x)) * tile_size / spritesheet_width;
@@ -322,8 +322,47 @@ fn drawTile(spritesheet: Spritesheet, x: i32, y: i32, frame_x: i32, frame_y: i32
     return vertices;
 }
 
-const FrameLookup = std.StaticStringMap([2]i32);
-var letters: FrameLookup = undefined;
+fn char_to_frame(char: u8) ?[2]i32 {
+    return switch (char) {
+        '0' => .{ 3, 8 },
+        '1' => .{ 4, 8 },
+        '2' => .{ 5, 8 },
+        '3' => .{ 6, 8 },
+        '4' => .{ 7, 8 },
+        '5' => .{ 8, 8 },
+        '6' => .{ 9, 8 },
+        '7' => .{ 10, 8 },
+        '8' => .{ 11, 8 },
+        '9' => .{ 12, 8 },
+        'a', 'A' => .{ 0, 9 },
+        'b', 'B' => .{ 1, 9 },
+        'c', 'C' => .{ 2, 9 },
+        'd', 'D' => .{ 3, 9 },
+        'e', 'E' => .{ 4, 9 },
+        'f', 'F' => .{ 5, 9 },
+        'g', 'G' => .{ 6, 9 },
+        'h', 'H' => .{ 7, 9 },
+        'i', 'I' => .{ 8, 9 },
+        'j', 'J' => .{ 9, 9 },
+        'k', 'K' => .{ 10, 9 },
+        'l', 'L' => .{ 11, 9 },
+        'm', 'M' => .{ 12, 9 },
+        'n', 'N' => .{ 0, 10 },
+        'o', 'O' => .{ 1, 10 },
+        'p', 'P' => .{ 2, 10 },
+        'q', 'Q' => .{ 3, 10 },
+        'r', 'R' => .{ 4, 10 },
+        's', 'S' => .{ 5, 10 },
+        't', 'T' => .{ 6, 10 },
+        'u', 'U' => .{ 7, 10 },
+        'v', 'V' => .{ 8, 10 },
+        'w', 'W' => .{ 9, 10 },
+        'x', 'X' => .{ 10, 10 },
+        'y', 'Y' => .{ 11, 10 },
+        'z', 'Z' => .{ 12, 10 },
+        else => null,
+    };
+}
 
 export fn frame() void {
     const dt: f32 = @floatCast(sapp.frameDuration() * 60);
@@ -367,22 +406,31 @@ export fn frame() void {
     };
     sprite_count += 1;
 
-    sprite_vertex_data[4..][0..4].* = drawTile(.tilemap, 2, 2, 0, 0);
+    sprite_vertex_data[4..][0..4].* = drawTile(.tilemap, 2.0, 2.0, 0, 0);
     sprite_count += 1;
 
-    sprite_vertex_data[8..][0..4].* = drawTile(.interface, 3, 3, 0, 9);
+    sprite_vertex_data[8..][0..4].* = drawTile(.interface, 3.0, 3.0, 0, 9);
     sprite_count += 1;
 
-    var ui_x: i32 = 4;
-    const ui_y = 4;
-    for ("aaaaaa") |char| {
-        const str = &[_]u8{char};
-        const letter_frame = letters.get(str);
+    var ui_x: f32 = 4.0;
+    const ui_y = 4.0;
+    for ("0123456789wooow") |char| {
+        const letter_frame = char_to_frame(char);
         if (letter_frame) |l| {
             const x, const y = l;
+            // w and m have wider sprites compared to everything else
+            const wide_offset = 2.0 / 16.0;
+            if (char == 'w' or char == 'm') {
+                ui_x += 1.0 * wide_offset;
+            }
             sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(.interface, ui_x, ui_y, x, y);
-            ui_x += 1;
+            if (char == 'w' or char == 'm') {
+                ui_x += 1.0 * wide_offset;
+            }
+            ui_x += 0.5;
             sprite_count += 1;
+        } else {
+            ui_x += 0.5;
         }
     }
 
@@ -413,8 +461,6 @@ export fn cleanup() void {
 }
 
 pub fn main() !void {
-    letters = FrameLookup.initComptime(.{.{ "a", .{ 0, 9 } }});
-
     sapp.run(.{
         .init_cb = init,
         .event_cb = input,
