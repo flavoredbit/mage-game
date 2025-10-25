@@ -26,7 +26,7 @@ const DisplayVertex = struct {
 
 const tile_size = 16;
 const logical_width = 256.0;
-const logical_height = 196.0;
+const logical_height = 192.0;
 const max_sprites = 1_000;
 
 export fn init() void {
