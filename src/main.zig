@@ -266,7 +266,7 @@ export fn input(e: ?*const sapp.Event) void {
 
 const Spritesheet = enum { tilemap, character, interface };
 
-fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: i32, frame_y: i32) [4]SpriteVertex {
+fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32) [4]SpriteVertex {
     var spritesheet_width: f32 = undefined;
     var spritesheet_height: f32 = undefined;
     switch (spritesheet) {
@@ -322,7 +322,7 @@ fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: i32, frame_y: i32
     return vertices;
 }
 
-fn char_to_frame(char: u8) ?[2]i32 {
+fn char_to_frame(char: u8) ?[2]u32 {
     return switch (char) {
         '0' => .{ 3, 8 },
         '1' => .{ 4, 8 },
@@ -412,6 +412,23 @@ export fn frame() void {
     sprite_vertex_data[8..][0..4].* = drawTile(.interface, 3.0, 3.0, 0, 9);
     sprite_count += 1;
 
+    var layer_idx: usize = 3;
+    while (layer_idx > 0) {
+        layer_idx -= 1;
+        const layer = level.level.layers[layer_idx];
+        for (layer) |row| {
+            for (row) |tile| {
+                sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(
+                    .tilemap,
+                    @floatFromInt(tile.pos[0]),
+                    @floatFromInt(tile.pos[1]),
+                    tile.tex[0],
+                    tile.tex[1],
+                );
+                sprite_count += 1;
+            }
+        }
+    }
     var ui_x: f32 = 4.0;
     const ui_y = 4.0;
     for ("0123456789wooow") |char| {
@@ -423,7 +440,13 @@ export fn frame() void {
             if (char == 'w' or char == 'm') {
                 ui_x += 1.0 * wide_offset;
             }
-            sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(.interface, ui_x, ui_y, x, y);
+            sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(
+                .interface,
+                ui_x,
+                ui_y,
+                x,
+                y,
+            );
             if (char == 'w' or char == 'm') {
                 ui_x += 1.0 * wide_offset;
             }
@@ -486,3 +509,4 @@ const display_shader = @import("shaders/display.zig");
 const sprites_shader = @import("shaders/sprites.zig");
 const math = @import("math.zig");
 const Mat4 = math.Mat4;
+const level = @import("level.zig");
