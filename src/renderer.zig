@@ -3,6 +3,19 @@ const logical_width = 256.0;
 const logical_height = 192.0;
 const max_sprites = 1_000;
 
+const SpriteVertex = struct {
+    pos: [2]f32,
+    uv: [2]f32,
+    tex_idx: u32, // Matches Spritesheet enum
+};
+
+const DisplayVertex = struct {
+    pos: [2]f32,
+    uv: [2]f32,
+};
+
+const Spritesheet = enum { tilemap, character, interface };
+
 const render = struct {
     const sprites = struct {
         var attachments: sg.Attachments = .{};
@@ -18,18 +31,8 @@ const render = struct {
     };
 };
 
-const SpriteVertex = struct {
-    pos: [2]f32,
-    uv: [2]f32,
-    tex_idx: u32, // Matches Spritesheet enum
-};
-
-const DisplayVertex = struct {
-    pos: [2]f32,
-    uv: [2]f32,
-};
-
-const Spritesheet = enum { tilemap, character, interface };
+var sprite_vertex_data: [max_sprites * 4]SpriteVertex = std.mem.zeroes([max_sprites * 4]SpriteVertex);
+var sprite_count: u32 = 0;
 
 pub fn init() void {
     sg.setup(.{
@@ -356,7 +359,7 @@ fn char_to_frame(char: u8) ?[2]u32 {
     };
 }
 
-fn drawText(start_x: f32, start_y: f32, text: []const u8, sprite_vertex_data: []SpriteVertex, sprite_count: *u32) void {
+fn drawText(start_x: f32, start_y: f32, text: []const u8) void {
     var ui_x: f32 = start_x;
     for (text) |char| {
         const letter_frame = char_to_frame(char);
@@ -367,7 +370,7 @@ fn drawText(start_x: f32, start_y: f32, text: []const u8, sprite_vertex_data: []
             if (char == 'w' or char == 'm') {
                 ui_x += 1.0 * wide_offset;
             }
-            sprite_vertex_data[sprite_count.* * 4 ..][0..4].* = drawTile(
+            sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(
                 .interface,
                 ui_x,
                 start_y,
@@ -378,7 +381,7 @@ fn drawText(start_x: f32, start_y: f32, text: []const u8, sprite_vertex_data: []
                 ui_x += 1.0 * wide_offset;
             }
             ui_x += 0.5;
-            sprite_count.* += 1;
+            sprite_count += 1;
         } else {
             ui_x += 0.5;
         }
@@ -395,8 +398,7 @@ pub fn renderLevel(level: *const GameLevel) void {
     const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
     sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
     // Update buffers
-    var sprite_vertex_data: [max_sprites * 4]SpriteVertex = std.mem.zeroes([max_sprites * 4]SpriteVertex);
-    var sprite_count: u32 = 0;
+    sprite_count = 0;
 
     // Bottom-left
     sprite_vertex_data[0] = .{
@@ -447,7 +449,7 @@ pub fn renderLevel(level: *const GameLevel) void {
         }
     }
 
-    drawText(4.0, 4.0, "0123456789wooow", &sprite_vertex_data, &sprite_count);
+    drawText(4.0, 4.0, "0123456789wooow");
 
     sg.updateBuffer(
         render.sprites.bind.vertex_buffers[0],
