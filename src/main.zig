@@ -61,12 +61,12 @@ export fn init() void {
         .usage = .{ .index_buffer = true },
     });
 
-    // TODO: Make this a full screen normalized quad.
     const display_vertices = [_]DisplayVertex{
-        .{ .pos = .{ 0.0, logical_height }, .uv = .{ 0.0, 1.0 } }, // bottom-left
-        .{ .pos = .{ 0.0, 0.0 }, .uv = .{ 0.0, 0.0 } }, // top-left
-        .{ .pos = .{ logical_width, logical_height }, .uv = .{ 1.0, 1.0 } }, // bottom-right
-        .{ .pos = .{ logical_width, 0.0 }, .uv = .{ 1.0, 0.0 } }, // top-right
+        // UV coordinates are (0, 0) from the lower-left
+        .{ .pos = .{ -1.0, -1.0 }, .uv = .{ 0.0, 0.0 } }, // bottom-left
+        .{ .pos = .{ 1.0, -1.0 }, .uv = .{ 1.0, 0.0 } }, // bottom-right
+        .{ .pos = .{ -1.0, 1.0 }, .uv = .{ 0.0, 1.0 } }, // top-left
+        .{ .pos = .{ 1.0, 1.0 }, .uv = .{ 1.0, 1.0 } }, // top-right
     };
     const display_indices = [_]u16{ 0, 1, 2, 1, 3, 2 };
     render.display.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -470,9 +470,6 @@ export fn frame() void {
     });
     sg.applyPipeline(render.display.pip);
     sg.applyBindings(render.display.bind);
-    // TODO: This mvp is unnecessary.
-    const mvp: Mat4 = .ortho(0.0, logical_width, 0.0, logical_height, -1.0, 1.0);
-    sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&mvp));
     sg.draw(0, 6, 1);
 
     sg.endPass();

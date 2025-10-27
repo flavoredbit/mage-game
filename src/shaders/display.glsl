@@ -2,23 +2,19 @@
 @ctype mat4 m.mat4
 
 @vs vs
-layout(binding=0) uniform vs_params {
-  mat4 mvp;
-};
-
 in vec2 position;
 in vec2 texcoord;
 
 out vec2 v_texcoord;
 
 void main() {
-  gl_Position = mvp * vec4(position, 0.0, 1.0);
+  gl_Position = vec4(position, 0.0, 1.0);
   v_texcoord = texcoord;
 }
 @end
 
 @fs fs
-layout(binding=0) uniform texture2D tilemap_texture;
+layout(binding=0) uniform texture2D offscreen_texture;
 layout(binding=0) uniform sampler sprite_sampler;
 
 in vec2 v_texcoord;
@@ -26,7 +22,7 @@ in vec2 v_texcoord;
 out vec4 frag_color;
 
 void main() {
-  frag_color = texture(sampler2D(tilemap_texture, sprite_sampler), v_texcoord);
+  frag_color = texture(sampler2D(offscreen_texture, sprite_sampler), v_texcoord);
 }
 @end
 
