@@ -58,10 +58,11 @@ pub fn main() !void {
     }
 
     for (game_level.layers) |layer| {
+        std.debug.print(".{{\n", .{});
         for (layer) |row| {
-            std.debug.print(".{{", .{});
+            std.debug.print("    .{{\n", .{});
             for (row) |tile| {
-                std.debug.print(".{{ .pos = .{{ {}, {} }}, .tex = .{{ {}, {} }}, .tex_idx = {} }},", .{
+                std.debug.print("        .{{ .pos = .{{ {}, {} }}, .tex = .{{ {}, {} }}, .tex_idx = {} }},", .{
                     tile.pos[0],
                     tile.pos[1],
                     tile.tex[0],
@@ -69,8 +70,9 @@ pub fn main() !void {
                     tile.tex_idx,
                 });
             }
-            std.debug.print("}},\n", .{});
+            std.debug.print("    }},\n", .{});
         }
+        std.debug.print(".}}\n", .{});
     }
 }
 
