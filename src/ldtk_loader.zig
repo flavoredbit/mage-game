@@ -18,14 +18,6 @@ const tile_size = 16;
 const width_in_tiles = 16;
 const height_in_tiles = 12;
 
-const GameTile = struct {
-    pos: [2]u32,
-    tex: [2]u32,
-    tex_idx: usize,
-};
-const GameLevel = struct {
-    layers: [3][height_in_tiles][width_in_tiles]GameTile,
-};
 var game_level: GameLevel = undefined;
 
 pub fn main() !void {
@@ -46,11 +38,11 @@ pub fn main() !void {
     defer parsed.deinit();
 
     const result: LdtkData = parsed.value;
-    for (result.levels) |level| {
+    for (result.levels) |ldtk_level| {
         var layer_idx: usize = 0;
-        for (level.layerInstances) |layer| {
+        for (ldtk_level.layerInstances) |layer| {
             defer layer_idx += 1;
-            std.debug.print("{s} has {} tiles\n", .{ level.identifier, layer.gridTiles.len });
+            std.debug.print("{s} has {} tiles\n", .{ ldtk_level.identifier, layer.gridTiles.len });
             for (layer.gridTiles) |gridTile| {
                 const tile_x = gridTile.px[0] / 16;
                 const tile_y = gridTile.px[1] / 16;
@@ -83,3 +75,6 @@ pub fn main() !void {
 }
 
 const std = @import("std");
+const level = @import("level.zig");
+const GameLevel = level.GameLevel;
+const GameTile = level.GameTile;

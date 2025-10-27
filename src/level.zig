@@ -2,12 +2,12 @@ const tile_size = 16;
 const width_in_tiles = 16;
 const height_in_tiles = 12;
 
-const GameTile = struct {
+pub const GameTile = struct {
     pos: [2]u32,
     tex: [2]u32,
     tex_idx: usize,
 };
-const GameLevel = struct {
+pub const GameLevel = struct {
     layers: [3][height_in_tiles][width_in_tiles]GameTile,
 };
 pub const level: GameLevel = .{
