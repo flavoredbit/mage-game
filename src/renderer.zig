@@ -441,6 +441,10 @@ pub fn renderLevel(level: *const GameLevel) void {
         const layer = level.layers[layer_idx];
         for (layer) |row| {
             for (row) |tile| {
+                // Tiles are always full so we need to skip empty tiles, might need to use an arraylist.
+                if (tile.pos[0] == 0 and tile.pos[1] == 0 and tile.tex[0] == 0 and tile.tex[1] == 0) {
+                    continue;
+                }
                 sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(
                     .tilemap,
                     @floatFromInt(tile.pos[0]),
