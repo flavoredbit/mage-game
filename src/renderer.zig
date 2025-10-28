@@ -392,6 +392,7 @@ var time_elapsed: f32 = 0;
 
 pub fn renderLevel(level: *const GameLevel) void {
     time_elapsed += @as(f32, @floatCast(sapp.frameDuration()));
+
     sg.beginPass(.{
         .action = render.sprites.pass_action,
         .attachments = render.sprites.attachments,
@@ -468,10 +469,11 @@ pub fn renderLevel(level: *const GameLevel) void {
     sg.applyPipeline(render.display.pip);
     sg.applyBindings(render.display.bind);
 
-    const display_shader_params: display_shader.VsParams = .{
-        .u_time = time_elapsed,
-    };
-    sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
+    // Binding a single float with uniforms
+    // const display_shader_params: display_shader.VsParams = .{
+    //     .u_time = time_elapsed,
+    // };
+    // sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
     sg.draw(0, 6, 1);
 
     sg.endPass();
