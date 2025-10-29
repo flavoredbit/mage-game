@@ -481,10 +481,6 @@ pub fn renderLevel(level: *const GameLevel) void {
     //     .u_time = time_elapsed,
     // };
     // sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
-    const display_shader_params: display_shader.VsParams = .{
-        .screen_resolution = .{ display_width, display_height },
-    };
-    sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
     sg.draw(0, 6, 1);
 
     sg.endPass();
