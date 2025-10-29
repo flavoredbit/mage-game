@@ -1,3 +1,6 @@
+const display_height = 768;
+const display_width = 1024;
+
 const tile_size = 16;
 const logical_width = 256.0;
 const logical_height = 192.0;
@@ -234,8 +237,8 @@ pub fn init() void {
     render.display.bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .NEAREST,
         .mag_filter = .NEAREST,
-        .wrap_u = .REPEAT,
-        .wrap_v = .REPEAT,
+        .wrap_u = .CLAMP_TO_EDGE,
+        .wrap_v = .CLAMP_TO_EDGE,
     });
 
     render.display.bind.views[0] = sg.makeView(.{
@@ -478,6 +481,10 @@ pub fn renderLevel(level: *const GameLevel) void {
     //     .u_time = time_elapsed,
     // };
     // sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
+    const display_shader_params: display_shader.VsParams = .{
+        .screen_resolution = .{ display_width, display_height },
+    };
+    sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
     sg.draw(0, 6, 1);
 
     sg.endPass();
