@@ -14,7 +14,11 @@ export fn input(e: ?*const sapp.Event) void {
 }
 
 export fn frame() void {
+    renderer.beginFrame();
     renderer.renderLevel(&level.level);
+    // character starts at 368 (0->22), 240 (0->14)
+    renderer.drawTile(.character, 7.0, 5.0, 24, 15);
+    renderer.endFrame();
 }
 
 export fn cleanup() void {

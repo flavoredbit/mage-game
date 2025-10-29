@@ -264,7 +264,7 @@ pub fn init() void {
     });
 }
 
-fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32) [4]SpriteVertex {
+pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32) void {
     var spritesheet_width: f32 = undefined;
     var spritesheet_height: f32 = undefined;
     switch (spritesheet) {
@@ -317,7 +317,9 @@ fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32
         .uv = .{ frame_u + frame_w, frame_v },
         .tex_idx = tex_idx,
     };
-    return vertices;
+
+    sprite_vertex_data[sprite_count * 4 ..][0..4].* = vertices;
+    sprite_count += 1;
 }
 
 fn char_to_frame(char: u8) ?[2]u32 {
@@ -373,40 +375,22 @@ fn drawText(start_x: f32, start_y: f32, text: []const u8) void {
             if (char == 'w' or char == 'm') {
                 ui_x += 1.0 * wide_offset;
             }
-            sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(
-                .interface,
-                ui_x,
-                start_y,
-                x,
-                y,
-            );
+            drawTile(.interface, ui_x, start_y, x, y);
             if (char == 'w' or char == 'm') {
                 ui_x += 1.0 * wide_offset;
             }
             ui_x += 0.5;
-            sprite_count += 1;
         } else {
             ui_x += 0.5;
         }
     }
 }
 
-var time_elapsed: f32 = 0;
+pub fn beginFrame() void {
+    sprite_count = 0;
+}
 
 pub fn renderLevel(level: *const GameLevel) void {
-    time_elapsed += @as(f32, @floatCast(sapp.frameDuration()));
-
-    sg.beginPass(.{
-        .action = render.sprites.pass_action,
-        .attachments = render.sprites.attachments,
-    });
-    sg.applyPipeline(render.sprites.pip);
-    sg.applyBindings(render.sprites.bind);
-    const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
-    sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
-    // Update buffers
-    sprite_count = 0;
-
     // Bottom-left
     sprite_vertex_data[0] = .{
         .pos = .{ 0.0, 32.0 },
@@ -433,11 +417,9 @@ pub fn renderLevel(level: *const GameLevel) void {
     };
     sprite_count += 1;
 
-    sprite_vertex_data[4..][0..4].* = drawTile(.tilemap, 2.0, 2.0, 0, 0);
-    sprite_count += 1;
+    drawTile(.tilemap, 2.0, 2.0, 0, 0);
 
-    sprite_vertex_data[8..][0..4].* = drawTile(.interface, 3.0, 3.0, 0, 9);
-    sprite_count += 1;
+    drawTile(.interface, 3.0, 3.0, 0, 9);
     var layer_idx: usize = 3;
     while (layer_idx > 0) {
         layer_idx -= 1;
@@ -448,19 +430,33 @@ pub fn renderLevel(level: *const GameLevel) void {
                 if (tile.pos[0] == 0 and tile.pos[1] == 0 and tile.tex[0] == 0 and tile.tex[1] == 0) {
                     continue;
                 }
-                sprite_vertex_data[sprite_count * 4 ..][0..4].* = drawTile(
+                drawTile(
                     .tilemap,
                     @floatFromInt(tile.pos[0]),
                     @floatFromInt(tile.pos[1]),
                     tile.tex[0],
                     tile.tex[1],
                 );
-                sprite_count += 1;
             }
         }
     }
 
     drawText(4.0, 4.0, "0123456789wooow");
+}
+
+var time_elapsed: f32 = 0;
+pub fn endFrame() void {
+    time_elapsed += @as(f32, @floatCast(sapp.frameDuration()));
+
+    sg.beginPass(.{
+        .action = render.sprites.pass_action,
+        .attachments = render.sprites.attachments,
+    });
+    sg.applyPipeline(render.sprites.pip);
+    sg.applyBindings(render.sprites.bind);
+    const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
+    sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
+    // Update buffers
 
     sg.updateBuffer(
         render.sprites.bind.vertex_buffers[0],
