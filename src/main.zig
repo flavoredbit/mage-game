@@ -1,3 +1,9 @@
+const Position = struct { x: f32, y: f32 };
+
+const game_state = struct {
+    var player_position: Position = .{ .x = 7.0, .y = 5.0 };
+};
+
 export fn init() void {
     renderer.init();
 }
@@ -14,10 +20,11 @@ export fn input(e: ?*const sapp.Event) void {
 }
 
 export fn frame() void {
+    game_state.player_position.x += 0.01;
     renderer.beginFrame();
     renderer.renderLevel(&level.level);
     // character starts at 368 (0->22), 240 (0->14)
-    renderer.drawTile(.character, 7.0, 5.0, 24, 15);
+    renderer.drawTile(.character, game_state.player_position.x, game_state.player_position.y, 24, 15);
     renderer.endFrame();
 }
 
