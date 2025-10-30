@@ -9,6 +9,7 @@ const max_sprites = 1_000;
 const SpriteVertex = struct {
     pos: [2]f32,
     uv: [2]f32,
+    tint_color: [4]f32,
     tex_idx: u32, // Matches Spritesheet enum
 };
 
@@ -183,6 +184,7 @@ pub fn init() void {
             var l = sg.VertexLayoutState{};
             l.attrs[sprites_shader.ATTR_sprites_position] = .{ .format = .FLOAT2, .offset = @offsetOf(SpriteVertex, "pos") };
             l.attrs[sprites_shader.ATTR_sprites_texcoord] = .{ .format = .FLOAT2, .offset = @offsetOf(SpriteVertex, "uv") };
+            l.attrs[sprites_shader.ATTR_sprites_tint_color] = .{ .format = .FLOAT4, .offset = @offsetOf(SpriteVertex, "tint_color") };
             l.attrs[sprites_shader.ATTR_sprites_texidx] = .{ .format = .INT, .offset = @offsetOf(SpriteVertex, "tex_idx") };
             break :init l;
         },
@@ -292,29 +294,34 @@ pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y:
     const frame_h = tile_size / spritesheet_height;
 
     const tex_idx = @intFromEnum(spritesheet);
+    const tint_color: [4]f32 = .{ 1.0, 0.0, 1.0, 0.5 };
     var vertices: [4]SpriteVertex = undefined;
     // Bottom-left
     vertices[0] = .{
         .pos = .{ world_x, world_y + tile_size },
         .uv = .{ frame_u, frame_v + frame_h },
+        .tint_color = tint_color,
         .tex_idx = tex_idx,
     };
     // Bottom-right
     vertices[1] = .{
         .pos = .{ world_x + tile_size, world_y + tile_size },
         .uv = .{ frame_u + frame_w, frame_v + frame_h },
+        .tint_color = tint_color,
         .tex_idx = tex_idx,
     };
     // Top-left
     vertices[2] = .{
         .pos = .{ world_x, world_y },
         .uv = .{ frame_u, frame_v },
+        .tint_color = tint_color,
         .tex_idx = tex_idx,
     };
     // Top-right
     vertices[3] = .{
         .pos = .{ world_x + tile_size, world_y },
         .uv = .{ frame_u + frame_w, frame_v },
+        .tint_color = tint_color,
         .tex_idx = tex_idx,
     };
 
@@ -395,24 +402,28 @@ pub fn renderLevel(level: *const GameLevel) void {
     sprite_vertex_data[0] = .{
         .pos = .{ 0.0, 32.0 },
         .uv = .{ 0.0, 1.0 },
+        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
         .tex_idx = 2,
     };
     // Bottom-right
     sprite_vertex_data[1] = .{
         .pos = .{ 32.0, 32.0 },
         .uv = .{ 1.0, 1.0 },
+        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
         .tex_idx = 2,
     };
     // Top-left
     sprite_vertex_data[2] = .{
         .pos = .{ 0.0, 0.0 },
         .uv = .{ 0.0, 0.0 },
+        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
         .tex_idx = 2,
     };
     // Top-right
     sprite_vertex_data[3] = .{
         .pos = .{ 32.0, 0.0 },
         .uv = .{ 1.0, 0.0 },
+        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
         .tex_idx = 2,
     };
     sprite_count += 1;
