@@ -51,7 +51,6 @@ export fn input(e: ?*const sapp.Event) void {
 export fn frame() void {
     if (!game_state.is_moving) {
         if (game_state.move_input) |move| {
-            defer game_state.move_input = null;
             game_state.is_moving = true;
             game_state.position_diff = switch (move) {
                 .up => .{ .x = 0.0, .y = -1.0 },
