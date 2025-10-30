@@ -1,7 +1,12 @@
 const Position = struct { x: f32, y: f32 };
 
+const Direction = enum { up, down, left, right };
+
 const game_state = struct {
+    var is_moving: bool = false;
     var player_position: Position = .{ .x = 7.0, .y = 5.0 };
+    var move_input: ?Direction = null;
+    var position_diff: ?Position = null;
 };
 
 export fn init() void {
@@ -15,12 +20,28 @@ export fn input(e: ?*const sapp.Event) void {
     const event = e.?;
     if (event.type == .KEY_DOWN) {
         switch (event.key_code) {
+            .C => game_state.move_input = .up,
+            .D => game_state.move_input = .down,
+            .E => game_state.move_input = .left,
+            .F => game_state.move_input = .right,
             .G => flash_character = true,
             .ESCAPE => sapp.quit(),
             else => {},
         }
     } else if (event.type == .KEY_UP) {
         switch (event.key_code) {
+            .C => {
+                if (game_state.move_input == .up) game_state.move_input = null;
+            },
+            .D => {
+                if (game_state.move_input == .down) game_state.move_input = null;
+            },
+            .E => {
+                if (game_state.move_input == .left) game_state.move_input = null;
+            },
+            .F => {
+                if (game_state.move_input == .right) game_state.move_input = null;
+            },
             .G => flash_character = false,
             else => {},
         }
@@ -28,6 +49,36 @@ export fn input(e: ?*const sapp.Event) void {
 }
 
 export fn frame() void {
+    if (!game_state.is_moving) {
+        if (game_state.move_input) |move| {
+            defer game_state.move_input = null;
+            game_state.is_moving = true;
+            game_state.position_diff = switch (move) {
+                .up => .{ .x = 0.0, .y = -1.0 },
+                .down => .{ .x = 0.0, .y = 1.0 },
+                .left => .{ .x = -1.0, .y = 0.0 },
+                .right => .{ .x = 1.0, .y = 0.0 },
+            };
+        }
+    }
+
+    if (game_state.is_moving) {
+        var position_diff: *Position = &game_state.position_diff.?;
+        game_state.player_position.x += std.math.clamp(position_diff.x, -0.2, 0.2);
+        game_state.player_position.y += std.math.clamp(position_diff.y, -0.2, 0.2);
+
+        if (position_diff.x != 0.0) {
+            position_diff.x -= std.math.copysign(@as(f32, 0.2), position_diff.x);
+        }
+        if (position_diff.y != 0.0) {
+            position_diff.y -= std.math.copysign(@as(f32, 0.2), position_diff.y);
+        }
+        if (@abs(position_diff.x) < 0.1 and @abs(position_diff.y) < 0.1) {
+            game_state.is_moving = false;
+            game_state.position_diff = null;
+        }
+    }
+
     renderer.beginFrame();
     defer renderer.endFrame();
 
