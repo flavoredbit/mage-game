@@ -266,7 +266,7 @@ pub fn init() void {
     });
 }
 
-pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32) void {
+fn calculateSpriteVertices(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32, tint_color: [4]f32) [4]SpriteVertex {
     var spritesheet_width: f32 = undefined;
     var spritesheet_height: f32 = undefined;
     switch (spritesheet) {
@@ -294,7 +294,6 @@ pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y:
     const frame_h = tile_size / spritesheet_height;
 
     const tex_idx = @intFromEnum(spritesheet);
-    const tint_color: [4]f32 = .{ 1.0, 0.0, 1.0, 0.5 };
     var vertices: [4]SpriteVertex = undefined;
     // Bottom-left
     vertices[0] = .{
@@ -324,7 +323,18 @@ pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y:
         .tint_color = tint_color,
         .tex_idx = tex_idx,
     };
+    return vertices;
+}
 
+const default_tint: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
+pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32) void {
+    const vertices = calculateSpriteVertices(spritesheet, x, y, frame_x, frame_y, default_tint);
+    sprite_vertex_data[sprite_count * 4 ..][0..4].* = vertices;
+    sprite_count += 1;
+}
+
+pub fn drawTileTinted(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32, tint_color: [4]f32) void {
+    const vertices = calculateSpriteVertices(spritesheet, x, y, frame_x, frame_y, tint_color);
     sprite_vertex_data[sprite_count * 4 ..][0..4].* = vertices;
     sprite_count += 1;
 }
