@@ -20,12 +20,12 @@ export fn input(e: ?*const sapp.Event) void {
 }
 
 export fn frame() void {
-    game_state.player_position.x += 0.01;
     renderer.beginFrame();
+    defer renderer.endFrame();
+
     renderer.renderLevel(&level.level);
     // character starts at 368 (0->22), 240 (0->14)
     renderer.drawTile(.character, game_state.player_position.x, game_state.player_position.y, 24, 15);
-    renderer.endFrame();
 }
 
 export fn cleanup() void {
