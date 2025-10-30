@@ -408,39 +408,6 @@ pub fn beginFrame() void {
 }
 
 pub fn renderLevel(level: *const GameLevel) void {
-    // Bottom-left
-    sprite_vertex_data[0] = .{
-        .pos = .{ 0.0, 32.0 },
-        .uv = .{ 0.0, 1.0 },
-        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
-        .tex_idx = 2,
-    };
-    // Bottom-right
-    sprite_vertex_data[1] = .{
-        .pos = .{ 32.0, 32.0 },
-        .uv = .{ 1.0, 1.0 },
-        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
-        .tex_idx = 2,
-    };
-    // Top-left
-    sprite_vertex_data[2] = .{
-        .pos = .{ 0.0, 0.0 },
-        .uv = .{ 0.0, 0.0 },
-        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
-        .tex_idx = 2,
-    };
-    // Top-right
-    sprite_vertex_data[3] = .{
-        .pos = .{ 32.0, 0.0 },
-        .uv = .{ 1.0, 0.0 },
-        .tint_color = .{ 0.0, 0.0, 0.0, 0.0 },
-        .tex_idx = 2,
-    };
-    sprite_count += 1;
-
-    drawTile(.tilemap, 2.0, 2.0, 0, 0);
-
-    drawTile(.interface, 3.0, 3.0, 0, 9);
     var layer_idx: usize = 3;
     while (layer_idx > 0) {
         layer_idx -= 1;
