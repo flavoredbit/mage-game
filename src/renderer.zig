@@ -287,6 +287,7 @@ fn calculateSpriteVertices(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u3
     const world_x = x * tile_size;
     const world_y = y * tile_size;
 
+    std.debug.print("world: {}, {}\n", .{ world_x, world_y });
     // Frame coordinates are in normalized UV space from [0.0, 1.0]
     const frame_u = @as(f32, @floatFromInt(frame_x)) * tile_size / spritesheet_width;
     const frame_v = @as(f32, @floatFromInt(frame_y)) * tile_size / spritesheet_height;
@@ -335,6 +336,22 @@ pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y:
 
 pub fn drawTileTinted(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32, tint_color: [4]f32) void {
     const vertices = calculateSpriteVertices(spritesheet, x, y, frame_x, frame_y, tint_color);
+    sprite_vertex_data[sprite_count * 4 ..][0..4].* = vertices;
+    sprite_count += 1;
+}
+
+pub fn drawTileRotated(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32, rotation: f32) void {
+    var vertices = calculateSpriteVertices(spritesheet, x, y, frame_x, frame_y, default_tint);
+    const center_x = x * tile_size + 8.0;
+    const center_y = y * tile_size + 8.0;
+    for (&vertices) |*vertex| {
+        const relative_x = vertex.pos[0] - center_x;
+        const relative_y = vertex.pos[1] - center_y;
+        const rotated_x = relative_x * @cos(rotation) - relative_y * @sin(rotation);
+        const rotated_y = relative_y * @cos(rotation) + relative_x * @sin(rotation);
+        vertex.pos[0] = rotated_x + center_x;
+        vertex.pos[1] = rotated_y + center_y;
+    }
     sprite_vertex_data[sprite_count * 4 ..][0..4].* = vertices;
     sprite_count += 1;
 }

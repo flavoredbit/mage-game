@@ -48,7 +48,11 @@ export fn input(e: ?*const sapp.Event) void {
     }
 }
 
+var rotation: f32 = 0.0;
+
 export fn frame() void {
+    rotation += std.math.pi / 32.0;
+
     if (!game_state.is_moving) {
         if (game_state.move_input) |move| {
             game_state.is_moving = true;
@@ -89,6 +93,15 @@ export fn frame() void {
         renderer.drawTile(.character, game_state.player_position.x, game_state.player_position.y, 24, 15);
     }
     renderer.drawTileTinted(.character, game_state.player_position.x + 2.0, game_state.player_position.y, 24, 9, .{ 1.0, 0.0, 1.0, 0.1 });
+
+    renderer.drawTileRotated(
+        .character,
+        game_state.player_position.x + 4.0,
+        game_state.player_position.y,
+        24,
+        9,
+        rotation,
+    );
 }
 
 export fn cleanup() void {
