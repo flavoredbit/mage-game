@@ -50,6 +50,7 @@ pub fn build(b: *std.Build) !void {
     const run_step = b.step("run", "Run the app");
     try buildShader(b, dep_shdc, run_step, "display");
     try buildShader(b, dep_shdc, run_step, "sprites");
+    try buildShader(b, dep_shdc, run_step, "gaussian");
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
