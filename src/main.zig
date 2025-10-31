@@ -2,15 +2,33 @@ const Position = struct { x: f32, y: f32 };
 
 const Direction = enum { up, down, left, right };
 
+const MoveTo = struct {
+    start: Position,
+    end: Position,
+    progress: f32,
+};
+
 const game_state = struct {
     var is_moving: bool = false;
     var player_position: Position = .{ .x = 7.0, .y = 5.0 };
     var move_input: ?Direction = null;
-    var position_diff: ?Position = null;
+    var moving_to: ?MoveTo = null;
 };
 
 export fn init() void {
     renderer.init();
+}
+
+fn lerp(start: f32, end: f32, t: f32) f32 {
+    return @mulAdd(f32, start, 1.0 - t, end * t);
+}
+
+fn quadInOut(t: f32) f32 {
+    if (t < 0.5) {
+        return 2 * t * t;
+    } else {
+        return @mulAdd(f32, 4, t, -1) - 2 * t * t;
+    }
 }
 
 var flash_character: bool = false;
@@ -56,29 +74,40 @@ export fn frame() void {
     if (!game_state.is_moving) {
         if (game_state.move_input) |move| {
             game_state.is_moving = true;
-            game_state.position_diff = switch (move) {
-                .up => .{ .x = 0.0, .y = -1.0 },
-                .down => .{ .x = 0.0, .y = 1.0 },
-                .left => .{ .x = -1.0, .y = 0.0 },
-                .right => .{ .x = 1.0, .y = 0.0 },
+            game_state.moving_to = init: {
+                var moving_to: MoveTo = .{
+                    .start = game_state.player_position,
+                    .end = game_state.player_position,
+                    .progress = 0.0,
+                };
+                switch (move) {
+                    .up => moving_to.end.y -= 1.0,
+                    .down => moving_to.end.y += 1.0,
+                    .left => moving_to.end.x -= 1.0,
+                    .right => moving_to.end.x += 1.0,
+                }
+                break :init moving_to;
             };
         }
     }
 
     if (game_state.is_moving) {
-        var position_diff: *Position = &game_state.position_diff.?;
-        game_state.player_position.x += std.math.clamp(position_diff.x, -0.2, 0.2);
-        game_state.player_position.y += std.math.clamp(position_diff.y, -0.2, 0.2);
+        var moving_to: *MoveTo = &game_state.moving_to.?;
+        moving_to.progress += 0.05;
+        game_state.player_position.x = lerp(
+            moving_to.start.x,
+            moving_to.end.x,
+            quadInOut(moving_to.progress),
+        );
+        game_state.player_position.y = lerp(
+            moving_to.start.y,
+            moving_to.end.y,
+            quadInOut(moving_to.progress),
+        );
 
-        if (position_diff.x != 0.0) {
-            position_diff.x -= std.math.copysign(@as(f32, 0.2), position_diff.x);
-        }
-        if (position_diff.y != 0.0) {
-            position_diff.y -= std.math.copysign(@as(f32, 0.2), position_diff.y);
-        }
-        if (@abs(position_diff.x) < 0.1 and @abs(position_diff.y) < 0.1) {
+        if (moving_to.progress >= 1.0) {
             game_state.is_moving = false;
-            game_state.position_diff = null;
+            game_state.moving_to = null;
         }
     }
 
