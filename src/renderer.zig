@@ -554,9 +554,27 @@ pub fn renderLevel(level: *const GameLevel) void {
 }
 
 var time_elapsed: f32 = 0;
-pub fn endFrame() void {
+var blur_strength: f32 = 0.0;
+var blur_more: bool = true;
+pub fn endFrame(use_blur: bool) void {
     time_elapsed += @as(f32, @floatCast(sapp.frameDuration()));
+    if (use_blur) {
+        if (blur_more) {
+            blur_strength += 0.02;
+            if (blur_strength > 2.0) {
+                blur_more = false;
+                blur_strength = 2.0;
+            }
+        } else {
+            blur_strength -= 0.02;
+            if (blur_strength < 0.0) {
+                blur_more = true;
+                blur_strength = 0.0;
+            }
+        }
+    }
 
+    // Sprites pass
     sg.beginPass(.{
         .action = render.sprites.pass_action,
         .attachments = render.sprites.attachments,
@@ -574,39 +592,47 @@ pub fn endFrame() void {
     sg.draw(0, sprite_count * 6, 1);
     sg.endPass();
 
-    sg.beginPass(.{
-        .action = render.gaussian.pass_action,
-        .attachments = render.gaussian.attachments,
-    });
-    sg.applyPipeline(render.gaussian.pip);
-    var second_blur_bindings: sg.Bindings = .{};
-    second_blur_bindings.samplers[0] = render.gaussian.bind.samplers[0];
-    second_blur_bindings.views[0] = render.display.bind.views[0];
-    second_blur_bindings.vertex_buffers[0] = render.gaussian.bind.vertex_buffers[0];
-    second_blur_bindings.index_buffer = render.gaussian.bind.index_buffer;
-    sg.applyBindings(second_blur_bindings);
-    const second_blur_params: gaussian_shader.VsParams = .{
-        .direction = .{ 0.0, 1.0 },
-        .resolution = .{ logical_width, logical_height },
-    };
-    sg.applyUniforms(gaussian_shader.UB_vs_params, sg.asRange(&second_blur_params));
-    sg.draw(0, 6, 1);
-    sg.endPass();
+    if (use_blur) {
+        // First gaussian pass - take the sprite results and blur them
+        sg.beginPass(.{
+            .action = render.gaussian.pass_action,
+            .attachments = render.gaussian.attachments,
+        });
+        sg.applyPipeline(render.gaussian.pip);
+        // Set the view to the render target of the sprites pipeline.
+        var first_blur_bindings: sg.Bindings = .{};
+        first_blur_bindings.samplers[0] = render.gaussian.bind.samplers[0];
+        first_blur_bindings.views[0] = render.display.bind.views[0];
+        first_blur_bindings.vertex_buffers[0] = render.gaussian.bind.vertex_buffers[0];
+        first_blur_bindings.index_buffer = render.gaussian.bind.index_buffer;
+        sg.applyBindings(first_blur_bindings);
+        const first_blur: gaussian_shader.VsParams = .{
+            .direction = .{ 0.0, 1.0 },
+            .resolution = .{ logical_width, logical_height },
+            .blur_strength = blur_strength,
+        };
+        sg.applyUniforms(gaussian_shader.UB_vs_params, sg.asRange(&first_blur));
+        sg.draw(0, 6, 1);
+        sg.endPass();
 
-    sg.beginPass(.{
-        .action = render.gaussian.pass_action,
-        .attachments = render.sprites.attachments,
-    });
-    sg.applyPipeline(render.gaussian.pip);
-    sg.applyBindings(render.gaussian.bind);
-    const gaussian_shader_params: gaussian_shader.VsParams = .{
-        .direction = .{ 1.0, 0.0 },
-        .resolution = .{ logical_width, logical_height },
-    };
-    sg.applyUniforms(gaussian_shader.UB_vs_params, sg.asRange(&gaussian_shader_params));
-    sg.draw(0, 6, 1);
-    sg.endPass();
+        // Second gaussian pass - take the first results pass and render them to the sprites image
+        sg.beginPass(.{
+            .action = render.gaussian.pass_action,
+            .attachments = render.sprites.attachments,
+        });
+        sg.applyPipeline(render.gaussian.pip);
+        sg.applyBindings(render.gaussian.bind);
+        const second_blur: gaussian_shader.VsParams = .{
+            .direction = .{ 1.0, 0.0 },
+            .resolution = .{ logical_width, logical_height },
+            .blur_strength = blur_strength,
+        };
+        sg.applyUniforms(gaussian_shader.UB_vs_params, sg.asRange(&second_blur));
+        sg.draw(0, 6, 1);
+        sg.endPass();
+    }
 
+    // Display pass
     sg.beginPass(.{
         .action = render.display.pass_action,
         .swapchain = sglue.swapchain(),

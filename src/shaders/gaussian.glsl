@@ -14,6 +14,7 @@ void main() {
 layout(binding=0) uniform vs_params {
   vec2 direction;
   vec2 resolution;
+  float blur_strength;
 };
 layout(binding=0) uniform texture2D to_blur_texture;
 layout(binding=0) uniform sampler linear_sampler;
@@ -31,12 +32,14 @@ void main() {
   result += texture(sampler2D(to_blur_texture, linear_sampler), v_texcoord).rgb * weights[0];
 
   for (int i = 1; i < 5; i++) {
-    vec2 offset = direction * texel_size * float(i);
+    vec2 offset = direction * texel_size * float(i) * blur_strength;
     result += texture(sampler2D(to_blur_texture, linear_sampler), v_texcoord + offset).rgb * weights[i];
     result += texture(sampler2D(to_blur_texture, linear_sampler), v_texcoord - offset).rgb * weights[i];
   }
 
-  frag_color = vec4(result, 1.0);
+  // darken slightly
+  float darken_by = 1.0 - (blur_strength / 10.0);
+  frag_color = vec4(result * darken_by, 1.0);
 }
 @end
 @program gaussian vs fs

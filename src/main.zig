@@ -26,12 +26,14 @@ fn lerp(start: f32, end: f32, t: f32) f32 {
 }
 
 var flash_character: bool = false;
+var blur_screen: bool = false;
 
 export fn input(e: ?*const sapp.Event) void {
     if (e == null) return;
     const event = e.?;
     if (event.type == .KEY_DOWN) {
         switch (event.key_code) {
+            .K => blur_screen = true,
             .C => game_state.move_input = .up,
             .D => game_state.move_input = .down,
             .E => game_state.move_input = .left,
@@ -42,6 +44,7 @@ export fn input(e: ?*const sapp.Event) void {
         }
     } else if (event.type == .KEY_UP) {
         switch (event.key_code) {
+            .K => blur_screen = false,
             .C => {
                 if (game_state.move_input == .up) game_state.move_input = null;
             },
@@ -106,7 +109,7 @@ export fn frame() void {
     }
 
     renderer.beginFrame();
-    defer renderer.endFrame();
+    defer renderer.endFrame(blur_screen);
 
     renderer.renderLevel(&level.level);
     // character starts at 368 (0->22), 240 (0->14)
