@@ -19,16 +19,10 @@ export fn init() void {
     renderer.init();
 }
 
+// Copied from: https://github.com/Games-by-Mason/Tween/blob/main/src/interp.zig
+// in case I need more.
 fn lerp(start: f32, end: f32, t: f32) f32 {
     return @mulAdd(f32, start, 1.0 - t, end * t);
-}
-
-fn quadInOut(t: f32) f32 {
-    if (t < 0.5) {
-        return 2 * t * t;
-    } else {
-        return @mulAdd(f32, 4, t, -1) - 2 * t * t;
-    }
 }
 
 var flash_character: bool = false;
@@ -97,12 +91,12 @@ export fn frame() void {
         game_state.player_position.x = lerp(
             moving_to.start.x,
             moving_to.end.x,
-            quadInOut(moving_to.progress),
+            easing.smootherstep(moving_to.progress),
         );
         game_state.player_position.y = lerp(
             moving_to.start.y,
             moving_to.end.y,
-            quadInOut(moving_to.progress),
+            easing.smootherstep(moving_to.progress),
         );
 
         if (moving_to.progress >= 1.0) {
@@ -165,3 +159,4 @@ const math = @import("math.zig");
 const Mat4 = math.Mat4;
 const level = @import("level.zig");
 const renderer = @import("renderer.zig");
+const easing = @import("easing.zig");
