@@ -1,6 +1,4 @@
 pub fn drawDialog(char_name: []const u8, dialog: []const u8) void {
-    _ = char_name;
-    _ = dialog;
     const start_x = 0;
     const start_y = 7;
     const end_x = 15;
@@ -32,6 +30,14 @@ pub fn drawDialog(char_name: []const u8, dialog: []const u8) void {
             renderer.drawTile(.interface, @floatFromInt(middle_x), @floatFromInt(middle_y), 16, 1);
         }
     }
+
+    const text_start_x = start_x + 0.25;
+    const text_start_y = start_y + 0.375;
+    renderer.drawText(text_start_x, text_start_y, char_name, true);
+    renderer.drawText(text_start_x, text_start_y + 0.875, dialog, false);
+    renderer.drawText(text_start_x, text_start_y + 0.875 + 0.8125, dialog, false);
+    renderer.drawText(text_start_x, text_start_y + 0.875 + 0.8125 + 0.8125, dialog, false);
+    renderer.drawText(text_start_x, text_start_y + 0.875 + 0.8125 + 0.8125 + 0.8125, dialog, false);
 }
 
 const std = @import("std");

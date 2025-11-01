@@ -517,12 +517,15 @@ fn char_to_frame(char: u8) ?[2]u32 {
     };
 }
 
-fn drawText(start_x: f32, start_y: f32, text: []const u8) void {
+pub fn drawText(start_x: f32, start_y: f32, text: []const u8, is_bold: bool) void {
     var ui_x: f32 = start_x;
     for (text) |char| {
         const letter_frame = char_to_frame(char);
         if (letter_frame) |l| {
-            const x, const y = l;
+            const x, var y = l;
+            if (is_bold) {
+                y -= 3;
+            }
             // w and m have wider sprites compared to everything else
             const wide_offset = 2.0 / 16.0;
             if (char == 'w' or char == 'm') {
@@ -565,7 +568,7 @@ pub fn renderLevel(level: *const GameLevel) void {
         }
     }
 
-    drawText(4.0, 4.0, "0123456789wooow");
+    drawText(4.0, 4.0, "0123456789wooow", false);
 }
 
 var time_elapsed: f32 = 0;
