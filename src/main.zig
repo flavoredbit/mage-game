@@ -76,6 +76,10 @@ fn playerFrame(direction: Direction) [2]u32 {
     };
 }
 
+fn difference(a: Position, b: Position) f32 {
+    return @abs(a.x - b.x) + @abs(a.y - b.y);
+}
+
 export fn frame() void {
     rotation += std.math.pi / 32.0;
 
@@ -153,7 +157,7 @@ export fn frame() void {
     }
     renderer.drawTileTinted(
         .character,
-        game_state.npc_position.x + 2.0,
+        game_state.npc_position.x,
         game_state.npc_position.y,
         24,
         15,
@@ -169,7 +173,20 @@ export fn frame() void {
         rotation,
     );
 
-    ui.drawDialog("Test", "Text goes here");
+    const npc_distance = difference(game_state.player_position, game_state.npc_position);
+    if (npc_distance < 1.3) {
+        renderer.drawTile(
+            .interface,
+            game_state.player_position.x,
+            game_state.player_position.y - 0.75,
+            5,
+            3,
+        );
+
+        if (flash_character) {
+            ui.drawDialog("Test", "Text goes here");
+        }
+    }
 }
 
 export fn cleanup() void {
