@@ -592,6 +592,16 @@ pub fn endFrame(use_blur: bool) void {
         }
     }
 
+    // Update the buffer before doing any pipeline:
+    // Trying to update the buffer during the pipeline seemed to cause an issue
+    // when removing sprits where the buffer was the value at the previous frame
+    // so it would have the vertex buffer of the last frame but the sprite count
+    // of the current frame.
+    sg.updateBuffer(
+        sprites.bind.vertex_buffers[0],
+        sg.asRange(sprite_vertex_data[0 .. sprite_count * 4]),
+    );
+
     // Sprites pass
     sg.beginPass(.{
         .action = sprites.pass_action,
@@ -601,12 +611,6 @@ pub fn endFrame(use_blur: bool) void {
     sg.applyBindings(sprites.bind);
     const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
     sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
-    // Update buffers
-
-    sg.updateBuffer(
-        sprites.bind.vertex_buffers[0],
-        sg.asRange(sprite_vertex_data[0 .. sprite_count * 4]),
-    );
     sg.draw(0, sprite_count * 6, 1);
     sg.endPass();
 
@@ -651,15 +655,14 @@ pub fn endFrame(use_blur: bool) void {
     });
     sg.applyPipeline(display.pip);
     sg.applyBindings(display.bind);
-
     // Binding a single float with uniforms
     // const display_shader_params: display_shader.VsParams = .{
     //     .u_time = time_elapsed,
     // };
     // sg.applyUniforms(display_shader.UB_vs_params, sg.asRange(&display_shader_params));
     sg.draw(0, 6, 1);
-
     sg.endPass();
+
     sg.commit();
 }
 
