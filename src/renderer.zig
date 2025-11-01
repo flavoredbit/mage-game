@@ -20,24 +20,22 @@ const DisplayVertex = struct {
 
 const Spritesheet = enum { tilemap, character, interface };
 
-const render = struct {
-    const sprites = struct {
-        var attachments: sg.Attachments = .{};
-        var pip: sg.Pipeline = .{};
-        var bind: sg.Bindings = .{};
-        var pass_action: sg.PassAction = .{};
-    };
-    const gaussian = struct {
-        var attachments: sg.Attachments = .{};
-        var pip: sg.Pipeline = .{};
-        var bind: sg.Bindings = .{};
-        var pass_action: sg.PassAction = .{};
-    };
-    const display = struct {
-        var pip: sg.Pipeline = .{};
-        var bind: sg.Bindings = .{};
-        var pass_action: sg.PassAction = .{};
-    };
+const sprites = struct {
+    var attachments: sg.Attachments = .{};
+    var pip: sg.Pipeline = .{};
+    var bind: sg.Bindings = .{};
+    var pass_action: sg.PassAction = .{};
+};
+const gaussian = struct {
+    var attachments: sg.Attachments = .{};
+    var pip: sg.Pipeline = .{};
+    var bind: sg.Bindings = .{};
+    var pass_action: sg.PassAction = .{};
+};
+const display = struct {
+    var pip: sg.Pipeline = .{};
+    var bind: sg.Bindings = .{};
+    var pass_action: sg.PassAction = .{};
 };
 
 var sprite_vertex_data: [max_sprites * 4]SpriteVertex = std.mem.zeroes([max_sprites * 4]SpriteVertex);
@@ -51,12 +49,12 @@ pub fn init() void {
 
     // Initialize sprite pass
 
-    render.sprites.pass_action.colors[0] = .{
+    sprites.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = .{ .r = 1.0, .g = 0.0, .b = 0.0 },
     };
 
-    render.sprites.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    sprites.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .size = @sizeOf(SpriteVertex) * max_sprites * 4,
         .usage = .{
             .vertex_buffer = true,
@@ -77,7 +75,7 @@ pub fn init() void {
         indices[index_index + 4] = vertex_index + 3;
         indices[index_index + 5] = vertex_index + 2;
     }
-    render.sprites.bind.index_buffer = sg.makeBuffer(.{
+    sprites.bind.index_buffer = sg.makeBuffer(.{
         .data = sg.asRange(&indices),
         .usage = .{ .index_buffer = true },
     });
@@ -136,16 +134,16 @@ pub fn init() void {
         .data = interface_image_data,
     });
 
-    render.sprites.bind.views[0] = sg.makeView(.{
+    sprites.bind.views[0] = sg.makeView(.{
         .texture = .{ .image = tilemap_image },
     });
-    render.sprites.bind.views[1] = sg.makeView(.{
+    sprites.bind.views[1] = sg.makeView(.{
         .texture = .{ .image = characters_image },
     });
-    render.sprites.bind.views[2] = sg.makeView(.{
+    sprites.bind.views[2] = sg.makeView(.{
         .texture = .{ .image = interface_image },
     });
-    render.sprites.bind.samplers[0] = sg.makeSampler(.{
+    sprites.bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .NEAREST,
         .mag_filter = .NEAREST,
         .wrap_u = .CLAMP_TO_EDGE,
@@ -174,7 +172,7 @@ pub fn init() void {
             .image = depth_image,
         },
     });
-    render.sprites.attachments = .{
+    sprites.attachments = .{
         .colors = init: {
             var c: [8]sg.View = @splat(.{});
             c[0] = color_att_view;
@@ -183,7 +181,7 @@ pub fn init() void {
         .depth_stencil = depth_att_view,
     };
 
-    render.sprites.pip = sg.makePipeline(.{
+    sprites.pip = sg.makePipeline(.{
         .shader = sg.makeShader(sprites_shader.spritesShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -219,7 +217,7 @@ pub fn init() void {
 
     // Initialize gaussian pass
 
-    render.gaussian.pass_action.colors[0] = .{
+    gaussian.pass_action.colors[0] = .{
         .load_action = .DONTCARE,
         .store_action = .STORE,
     };
@@ -232,11 +230,11 @@ pub fn init() void {
         .{ .pos = .{ 1.0, 1.0 }, .uv = .{ 1.0, 1.0 } }, // top-right
     };
     const gaussian_indices = [_]u16{ 0, 1, 2, 1, 3, 2 };
-    render.gaussian.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    gaussian.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&gaussian_vertices),
         .usage = .{ .vertex_buffer = true },
     });
-    render.gaussian.bind.index_buffer = sg.makeBuffer(.{
+    gaussian.bind.index_buffer = sg.makeBuffer(.{
         .data = sg.asRange(&gaussian_indices),
         .usage = .{ .index_buffer = true },
     });
@@ -263,7 +261,7 @@ pub fn init() void {
             .image = other_depth_image,
         },
     });
-    render.gaussian.attachments = .{
+    gaussian.attachments = .{
         .colors = init: {
             var c: [8]sg.View = @splat(.{});
             c[0] = other_color_att_view;
@@ -272,19 +270,19 @@ pub fn init() void {
         .depth_stencil = other_depth_att_view,
     };
 
-    render.gaussian.bind.samplers[0] = sg.makeSampler(.{
+    gaussian.bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .LINEAR,
         .mag_filter = .LINEAR,
         .wrap_u = .CLAMP_TO_EDGE,
         .wrap_v = .CLAMP_TO_EDGE,
     });
-    render.gaussian.bind.views[0] = sg.makeView(.{
+    gaussian.bind.views[0] = sg.makeView(.{
         .texture = .{
             .image = other_color_image,
         },
     });
 
-    render.gaussian.pip = sg.makePipeline(.{
+    gaussian.pip = sg.makePipeline(.{
         .shader = sg.makeShader(gaussian_shader.gaussianShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -318,7 +316,7 @@ pub fn init() void {
 
     // Initialize display pass
 
-    render.display.pass_action.colors[0] = .{
+    display.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = .{ .r = 0.0, .g = 0.0, .b = 1.0 },
         .store_action = .DONTCARE,
@@ -332,29 +330,29 @@ pub fn init() void {
         .{ .pos = .{ 1.0, 1.0 }, .uv = .{ 1.0, 1.0 } }, // top-right
     };
     const display_indices = [_]u16{ 0, 1, 2, 1, 3, 2 };
-    render.display.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    display.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&display_vertices),
         .usage = .{ .vertex_buffer = true },
     });
-    render.display.bind.index_buffer = sg.makeBuffer(.{
+    display.bind.index_buffer = sg.makeBuffer(.{
         .data = sg.asRange(&display_indices),
         .usage = .{ .index_buffer = true },
     });
 
-    render.display.bind.samplers[0] = sg.makeSampler(.{
+    display.bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .NEAREST,
         .mag_filter = .NEAREST,
         .wrap_u = .CLAMP_TO_EDGE,
         .wrap_v = .CLAMP_TO_EDGE,
     });
 
-    render.display.bind.views[0] = sg.makeView(.{
+    display.bind.views[0] = sg.makeView(.{
         .texture = .{
             .image = color_image,
         },
     });
 
-    render.display.pip = sg.makePipeline(.{
+    display.pip = sg.makePipeline(.{
         .shader = sg.makeShader(display_shader.displayShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -576,17 +574,17 @@ pub fn endFrame(use_blur: bool) void {
 
     // Sprites pass
     sg.beginPass(.{
-        .action = render.sprites.pass_action,
-        .attachments = render.sprites.attachments,
+        .action = sprites.pass_action,
+        .attachments = sprites.attachments,
     });
-    sg.applyPipeline(render.sprites.pip);
-    sg.applyBindings(render.sprites.bind);
+    sg.applyPipeline(sprites.pip);
+    sg.applyBindings(sprites.bind);
     const sprites_mvp: Mat4 = .ortho(0.0, logical_width, logical_height, 0.0, -1.0, 0.0);
     sg.applyUniforms(sprites_shader.UB_vs_params, sg.asRange(&sprites_mvp));
     // Update buffers
 
     sg.updateBuffer(
-        render.sprites.bind.vertex_buffers[0],
+        sprites.bind.vertex_buffers[0],
         sg.asRange(sprite_vertex_data[0 .. sprite_count * 4]),
     );
     sg.draw(0, sprite_count * 6, 1);
@@ -595,16 +593,16 @@ pub fn endFrame(use_blur: bool) void {
     if (use_blur) {
         // First gaussian pass - take the sprite results and blur them
         sg.beginPass(.{
-            .action = render.gaussian.pass_action,
-            .attachments = render.gaussian.attachments,
+            .action = gaussian.pass_action,
+            .attachments = gaussian.attachments,
         });
-        sg.applyPipeline(render.gaussian.pip);
+        sg.applyPipeline(gaussian.pip);
         // Set the view to the render target of the sprites pipeline.
         var first_blur_bindings: sg.Bindings = .{};
-        first_blur_bindings.samplers[0] = render.gaussian.bind.samplers[0];
-        first_blur_bindings.views[0] = render.display.bind.views[0];
-        first_blur_bindings.vertex_buffers[0] = render.gaussian.bind.vertex_buffers[0];
-        first_blur_bindings.index_buffer = render.gaussian.bind.index_buffer;
+        first_blur_bindings.samplers[0] = gaussian.bind.samplers[0];
+        first_blur_bindings.views[0] = display.bind.views[0];
+        first_blur_bindings.vertex_buffers[0] = gaussian.bind.vertex_buffers[0];
+        first_blur_bindings.index_buffer = gaussian.bind.index_buffer;
         sg.applyBindings(first_blur_bindings);
         const first_blur: gaussian_shader.VsParams = .{
             .direction = .{ 0.0, 1.0 },
@@ -617,11 +615,11 @@ pub fn endFrame(use_blur: bool) void {
 
         // Second gaussian pass - take the first results pass and render them to the sprites image
         sg.beginPass(.{
-            .action = render.gaussian.pass_action,
-            .attachments = render.sprites.attachments,
+            .action = gaussian.pass_action,
+            .attachments = sprites.attachments,
         });
-        sg.applyPipeline(render.gaussian.pip);
-        sg.applyBindings(render.gaussian.bind);
+        sg.applyPipeline(gaussian.pip);
+        sg.applyBindings(gaussian.bind);
         const second_blur: gaussian_shader.VsParams = .{
             .direction = .{ 1.0, 0.0 },
             .resolution = .{ logical_width, logical_height },
@@ -634,11 +632,11 @@ pub fn endFrame(use_blur: bool) void {
 
     // Display pass
     sg.beginPass(.{
-        .action = render.display.pass_action,
+        .action = display.pass_action,
         .swapchain = sglue.swapchain(),
     });
-    sg.applyPipeline(render.display.pip);
-    sg.applyBindings(render.display.bind);
+    sg.applyPipeline(display.pip);
+    sg.applyBindings(display.bind);
 
     // Binding a single float with uniforms
     // const display_shader_params: display_shader.VsParams = .{
