@@ -29,7 +29,12 @@ const sprites = struct {
 const gaussian = struct {
     var attachments: sg.Attachments = .{};
     var pip: sg.Pipeline = .{};
-    var bind: sg.Bindings = .{};
+    // Gaussian blur uses two passes, first pass uses the texture from the sprites shader
+    // and draws to another texture. Second pass then uses a view to the other texture
+    // and draws to the sprites texture. Then the display shader can just read from the
+    // same texture as usual to render it to the screen.
+    var first_bind: sg.Bindings = .{};
+    var second_bind: sg.Bindings = .{};
     var pass_action: sg.PassAction = .{};
 };
 const display = struct {
@@ -230,14 +235,17 @@ pub fn init() void {
         .{ .pos = .{ 1.0, 1.0 }, .uv = .{ 1.0, 1.0 } }, // top-right
     };
     const gaussian_indices = [_]u16{ 0, 1, 2, 1, 3, 2 };
-    gaussian.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    gaussian.second_bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&gaussian_vertices),
         .usage = .{ .vertex_buffer = true },
     });
-    gaussian.bind.index_buffer = sg.makeBuffer(.{
+    gaussian.second_bind.index_buffer = sg.makeBuffer(.{
         .data = sg.asRange(&gaussian_indices),
         .usage = .{ .index_buffer = true },
     });
+
+    gaussian.first_bind.vertex_buffers[0] = gaussian.second_bind.vertex_buffers[0];
+    gaussian.first_bind.index_buffer = gaussian.second_bind.index_buffer;
 
     var other_image_desc: sg.ImageDesc = .{
         .width = @intFromFloat(logical_width),
@@ -270,15 +278,22 @@ pub fn init() void {
         .depth_stencil = other_depth_att_view,
     };
 
-    gaussian.bind.samplers[0] = sg.makeSampler(.{
+    gaussian.second_bind.samplers[0] = sg.makeSampler(.{
         .min_filter = .LINEAR,
         .mag_filter = .LINEAR,
         .wrap_u = .CLAMP_TO_EDGE,
         .wrap_v = .CLAMP_TO_EDGE,
     });
-    gaussian.bind.views[0] = sg.makeView(.{
+    gaussian.second_bind.views[0] = sg.makeView(.{
         .texture = .{
             .image = other_color_image,
+        },
+    });
+
+    gaussian.first_bind.samplers[0] = gaussian.second_bind.samplers[0];
+    gaussian.first_bind.views[0] = sg.makeView(.{
+        .texture = .{
+            .image = color_image,
         },
     });
 
@@ -597,13 +612,7 @@ pub fn endFrame(use_blur: bool) void {
             .attachments = gaussian.attachments,
         });
         sg.applyPipeline(gaussian.pip);
-        // Set the view to the render target of the sprites pipeline.
-        var first_blur_bindings: sg.Bindings = .{};
-        first_blur_bindings.samplers[0] = gaussian.bind.samplers[0];
-        first_blur_bindings.views[0] = display.bind.views[0];
-        first_blur_bindings.vertex_buffers[0] = gaussian.bind.vertex_buffers[0];
-        first_blur_bindings.index_buffer = gaussian.bind.index_buffer;
-        sg.applyBindings(first_blur_bindings);
+        sg.applyBindings(gaussian.first_bind);
         const first_blur: gaussian_shader.VsParams = .{
             .direction = .{ 0.0, 1.0 },
             .resolution = .{ logical_width, logical_height },
@@ -619,7 +628,7 @@ pub fn endFrame(use_blur: bool) void {
             .attachments = sprites.attachments,
         });
         sg.applyPipeline(gaussian.pip);
-        sg.applyBindings(gaussian.bind);
+        sg.applyBindings(gaussian.second_bind);
         const second_blur: gaussian_shader.VsParams = .{
             .direction = .{ 1.0, 0.0 },
             .resolution = .{ logical_width, logical_height },
