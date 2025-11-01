@@ -404,6 +404,8 @@ fn calculateSpriteVertices(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u3
 
     const world_x = x * tile_size;
     const world_y = y * tile_size;
+    std.debug.assert(world_x < logical_width);
+    std.debug.assert(world_y < logical_height);
 
     // Frame coordinates are in normalized UV space from [0.0, 1.0]
     const frame_u = @as(f32, @floatFromInt(frame_x)) * tile_size / spritesheet_width;

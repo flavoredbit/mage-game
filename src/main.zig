@@ -128,6 +128,8 @@ export fn frame() void {
         9,
         rotation,
     );
+
+    ui.drawDialog("Test", "Text goes here");
 }
 
 export fn cleanup() void {
@@ -163,3 +165,4 @@ const Mat4 = math.Mat4;
 const level = @import("level.zig");
 const renderer = @import("renderer.zig");
 const easing = @import("easing.zig");
+const ui = @import("ui.zig");
