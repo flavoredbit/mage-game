@@ -537,7 +537,7 @@ pub fn drawText(start_x: f32, start_y: f32, text: []const u8, is_bold: bool) voi
             }
             ui_x += 0.5;
         } else {
-            ui_x += 0.5;
+            ui_x += 0.25;
         }
     }
 }

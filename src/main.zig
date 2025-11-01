@@ -11,6 +11,8 @@ const MoveTo = struct {
 const game_state = struct {
     var is_moving: bool = false;
     var player_position: Position = .{ .x = 7.0, .y = 5.0 };
+    var player_direction: Direction = .down;
+    var npc_position: Position = .{ .x = 10.0, .y = 5.0 };
     var move_input: ?Direction = null;
     var moving_to: ?MoveTo = null;
 };
@@ -65,12 +67,22 @@ export fn input(e: ?*const sapp.Event) void {
 
 var rotation: f32 = 0.0;
 
+fn playerFrame(direction: Direction) [2]u32 {
+    return switch (direction) {
+        .up => .{ 25, 6 },
+        .down => .{ 24, 6 },
+        .left => .{ 23, 6 },
+        .right => .{ 26, 6 },
+    };
+}
+
 export fn frame() void {
     rotation += std.math.pi / 32.0;
 
     if (!game_state.is_moving) {
         if (game_state.move_input) |move| {
             game_state.is_moving = true;
+            game_state.player_direction = move;
             game_state.moving_to = init: {
                 var moving_to: MoveTo = .{
                     .start = game_state.player_position,
@@ -113,17 +125,45 @@ export fn frame() void {
 
     renderer.renderLevel(&level.level);
     // character starts at 368 (0->22), 240 (0->14)
-    if (flash_character) {
-        renderer.drawTileTinted(.character, game_state.player_position.x, game_state.player_position.y, 24, 6, .{ 1.0, 1.0, 1.0, 1.0 });
-    } else {
-        renderer.drawTile(.character, game_state.player_position.x, game_state.player_position.y, 24, 6);
+    var player_frame = playerFrame(game_state.player_direction);
+    if (game_state.is_moving) {
+        if (game_state.moving_to.?.progress < 0.34) {
+            player_frame[1] += 1;
+        } else if (game_state.moving_to.?.progress > 0.67) {
+            player_frame[1] += 2;
+        }
     }
-    renderer.drawTileTinted(.character, game_state.player_position.x + 2.0, game_state.player_position.y, 24, 15, .{ 1.0, 0.0, 1.0, 0.1 });
+    if (flash_character) {
+        renderer.drawTileTinted(
+            .character,
+            game_state.player_position.x,
+            game_state.player_position.y,
+            player_frame[0],
+            player_frame[1],
+            .{ 1.0, 1.0, 1.0, 1.0 },
+        );
+    } else {
+        renderer.drawTile(
+            .character,
+            game_state.player_position.x,
+            game_state.player_position.y,
+            player_frame[0],
+            player_frame[1],
+        );
+    }
+    renderer.drawTileTinted(
+        .character,
+        game_state.npc_position.x + 2.0,
+        game_state.npc_position.y,
+        24,
+        15,
+        .{ 1.0, 0.0, 1.0, 0.1 },
+    );
 
     renderer.drawTileRotated(
         .character,
-        game_state.player_position.x + 4.0,
-        game_state.player_position.y,
+        game_state.npc_position.x + 4.0,
+        game_state.npc_position.y,
         24,
         9,
         rotation,
