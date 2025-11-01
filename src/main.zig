@@ -114,11 +114,11 @@ export fn frame() void {
     renderer.renderLevel(&level.level);
     // character starts at 368 (0->22), 240 (0->14)
     if (flash_character) {
-        renderer.drawTileTinted(.character, game_state.player_position.x, game_state.player_position.y, 24, 15, .{ 1.0, 1.0, 1.0, 1.0 });
+        renderer.drawTileTinted(.character, game_state.player_position.x, game_state.player_position.y, 24, 6, .{ 1.0, 1.0, 1.0, 1.0 });
     } else {
-        renderer.drawTile(.character, game_state.player_position.x, game_state.player_position.y, 24, 15);
+        renderer.drawTile(.character, game_state.player_position.x, game_state.player_position.y, 24, 6);
     }
-    renderer.drawTileTinted(.character, game_state.player_position.x + 2.0, game_state.player_position.y, 24, 9, .{ 1.0, 0.0, 1.0, 0.1 });
+    renderer.drawTileTinted(.character, game_state.player_position.x + 2.0, game_state.player_position.y, 24, 15, .{ 1.0, 0.0, 1.0, 0.1 });
 
     renderer.drawTileRotated(
         .character,
