@@ -571,6 +571,23 @@ pub fn renderLevel(level: *const GameLevel) void {
     drawText(4.0, 4.0, "0123456789wooow", false);
 }
 
+pub fn renderTilemap(tilemap: *Tilemap) void {
+    var layer_idx: usize = 3;
+    while (layer_idx > 0) {
+        layer_idx -= 1;
+        const layer = tilemap.layers[layer_idx];
+        for (layer.items) |tile| {
+            drawTile(
+                .tilemap,
+                @floatFromInt(tile.pos[0]),
+                @floatFromInt(tile.pos[1]),
+                tile.tex[0],
+                tile.tex[1],
+            );
+        }
+    }
+}
+
 var time_elapsed: f32 = 0;
 var blur_strength: f32 = 0.0;
 var blur_more: bool = true;
@@ -679,3 +696,4 @@ const display_shader = @import("shaders/display.zig");
 const gaussian_shader = @import("shaders/gaussian.zig");
 const sprites_shader = @import("shaders/sprites.zig");
 const GameLevel = @import("level.zig").GameLevel;
+const Tilemap = @import("tilemap.zig").Tilemap;

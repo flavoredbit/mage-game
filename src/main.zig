@@ -8,6 +8,9 @@ const MoveTo = struct {
     progress: f32,
 };
 
+var arena: std.heap.ArenaAllocator = undefined;
+var allocator: std.mem.Allocator = undefined;
+
 const game_state = struct {
     var is_moving: bool = false;
     var player_position: Position = .{ .x = 7.0, .y = 5.0 };
@@ -15,9 +18,11 @@ const game_state = struct {
     var npc_position: Position = .{ .x = 10.0, .y = 5.0 };
     var move_input: ?Direction = null;
     var moving_to: ?MoveTo = null;
+    var tilemap: Tilemap = undefined;
 };
 
 export fn init() void {
+    game_state.tilemap = tilemap.loadTilemap(allocator, "Level_0") catch unreachable;
     renderer.init();
 }
 
@@ -85,22 +90,24 @@ export fn frame() void {
 
     if (!game_state.is_moving) {
         if (game_state.move_input) |move| {
-            game_state.is_moving = true;
-            game_state.player_direction = move;
-            game_state.moving_to = init: {
-                var moving_to: MoveTo = .{
-                    .start = game_state.player_position,
-                    .end = game_state.player_position,
-                    .progress = 0.0,
-                };
-                switch (move) {
-                    .up => moving_to.end.y -= 1.0,
-                    .down => moving_to.end.y += 1.0,
-                    .left => moving_to.end.x -= 1.0,
-                    .right => moving_to.end.x += 1.0,
-                }
-                break :init moving_to;
+            var moving_to: MoveTo = .{
+                .start = game_state.player_position,
+                .end = game_state.player_position,
+                .progress = 0.0,
             };
+            switch (move) {
+                .up => moving_to.end.y -= 1.0,
+                .down => moving_to.end.y += 1.0,
+                .left => moving_to.end.x -= 1.0,
+                .right => moving_to.end.x += 1.0,
+            }
+            game_state.player_direction = move;
+
+            // Without @round 4.999999 will be converted to 4.
+            if (game_state.tilemap.canMoveTo(@intFromFloat(@round(moving_to.end.x)), @intFromFloat(@round(moving_to.end.y)))) {
+                game_state.is_moving = true;
+                game_state.moving_to = moving_to;
+            }
         }
     }
 
@@ -127,7 +134,7 @@ export fn frame() void {
     renderer.beginFrame();
     defer renderer.endFrame(blur_screen);
 
-    renderer.renderLevel(&level.level);
+    renderer.renderTilemap(&game_state.tilemap);
     // character starts at 368 (0->22), 240 (0->14)
     var player_frame = playerFrame(game_state.player_direction);
     if (game_state.is_moving) {
@@ -191,9 +198,12 @@ export fn frame() void {
 
 export fn cleanup() void {
     sg.shutdown();
+    arena.deinit();
 }
 
 pub fn main() !void {
+    arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    allocator = arena.allocator();
     sapp.run(.{
         .init_cb = init,
         .event_cb = input,
@@ -223,3 +233,5 @@ const level = @import("level.zig");
 const renderer = @import("renderer.zig");
 const easing = @import("easing.zig");
 const ui = @import("ui.zig");
+const tilemap = @import("tilemap.zig");
+const Tilemap = tilemap.Tilemap;
