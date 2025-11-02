@@ -22,7 +22,6 @@ const game_state = struct {
 };
 
 export fn init() void {
-    game_state.tilemap = tilemap.loadTilemap(allocator, "Level_0") catch unreachable;
     renderer.init();
 }
 
@@ -204,6 +203,9 @@ export fn cleanup() void {
 pub fn main() !void {
     arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     allocator = arena.allocator();
+
+    game_state.tilemap = try .init(allocator, "Level_0");
+
     sapp.run(.{
         .init_cb = init,
         .event_cb = input,
@@ -229,9 +231,7 @@ const display_shader = @import("shaders/display.zig");
 const sprites_shader = @import("shaders/sprites.zig");
 const math = @import("math.zig");
 const Mat4 = math.Mat4;
-const level = @import("level.zig");
 const renderer = @import("renderer.zig");
 const easing = @import("easing.zig");
 const ui = @import("ui.zig");
-const tilemap = @import("tilemap.zig");
-const Tilemap = tilemap.Tilemap;
+const Tilemap = @import("tilemap.zig");

@@ -1,3 +1,5 @@
+const Tilemap = @This();
+
 const tile_size = 16;
 const width_in_tiles = 16;
 const height_in_tiles = 12;
@@ -7,36 +9,32 @@ const Tile = struct {
     tex: [2]u32,
     tex_idx: usize,
 };
-pub const Tilemap = struct {
-    const Self = @This();
-    bounds: [width_in_tiles * height_in_tiles]bool,
-    layers: [3]std.ArrayList(Tile),
 
-    pub fn canMoveTo(self: *Self, x: i32, y: i32) bool {
-        if (x < 0 or y < 0 or x >= width_in_tiles or y >= height_in_tiles) return false;
-        const safe_x: usize = @intCast(x);
-        const safe_y: usize = @intCast(y);
-        return self.bounds[safe_x + (width_in_tiles * safe_y)];
-    }
-};
+bounds: [width_in_tiles * height_in_tiles]bool,
+layers: [3]std.ArrayList(Tile),
 
-const LdtkTile = struct {
-    px: [2]u32,
-    src: [2]u32,
-};
-const LdtkLayer = struct {
-    gridTiles: []const LdtkTile,
-};
-const LdtkLevel = struct {
-    identifier: []const u8,
-    layerInstances: []const LdtkLayer,
-};
-const LdtkData = struct {
-    iid: []const u8,
-    levels: []const LdtkLevel,
-};
-const ldtk_str = @embedFile("assets/level1.ldtk");
-pub fn loadTilemap(allocator: Allocator, level_name: []const u8) !Tilemap {
+pub fn canMoveTo(self: *Tilemap, x: i32, y: i32) bool {
+    if (x < 0 or y < 0 or x >= width_in_tiles or y >= height_in_tiles) return false;
+    const safe_x: usize = @intCast(x);
+    const safe_y: usize = @intCast(y);
+    return self.bounds[safe_x + (width_in_tiles * safe_y)];
+}
+
+pub fn init(allocator: Allocator, level_name: []const u8) !Tilemap {
+    const ldtk_str = @embedFile("assets/level1.ldtk");
+    const LdtkData = struct {
+        iid: []const u8,
+        levels: []const struct {
+            identifier: []const u8,
+            layerInstances: []const struct {
+                gridTiles: []const struct {
+                    px: [2]u32,
+                    src: [2]u32,
+                },
+            },
+        },
+    };
+
     const parsed = try std.json.parseFromSlice(
         LdtkData,
         allocator,
@@ -79,8 +77,6 @@ pub fn loadTilemap(allocator: Allocator, level_name: []const u8) !Tilemap {
         // Only layers we have are the ground, buildings and then objects
         std.debug.assert(layer_idx < 4);
     }
-
-    std.debug.print("{any}\n", .{tilemap.bounds});
 
     return tilemap;
 }

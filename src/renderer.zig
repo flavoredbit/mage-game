@@ -546,31 +546,6 @@ pub fn beginFrame() void {
     sprite_count = 0;
 }
 
-pub fn renderLevel(level: *const GameLevel) void {
-    var layer_idx: usize = 3;
-    while (layer_idx > 0) {
-        layer_idx -= 1;
-        const layer = level.layers[layer_idx];
-        for (layer) |row| {
-            for (row) |tile| {
-                // Tiles are always full so we need to skip empty tiles, might need to use an arraylist.
-                if (tile.pos[0] == 0 and tile.pos[1] == 0 and tile.tex[0] == 0 and tile.tex[1] == 0) {
-                    continue;
-                }
-                drawTile(
-                    .tilemap,
-                    @floatFromInt(tile.pos[0]),
-                    @floatFromInt(tile.pos[1]),
-                    tile.tex[0],
-                    tile.tex[1],
-                );
-            }
-        }
-    }
-
-    drawText(4.0, 4.0, "0123456789wooow", false);
-}
-
 pub fn renderTilemap(tilemap: *Tilemap) void {
     var layer_idx: usize = 3;
     while (layer_idx > 0) {
@@ -695,5 +670,4 @@ const Mat4 = math.Mat4;
 const display_shader = @import("shaders/display.zig");
 const gaussian_shader = @import("shaders/gaussian.zig");
 const sprites_shader = @import("shaders/sprites.zig");
-const GameLevel = @import("level.zig").GameLevel;
-const Tilemap = @import("tilemap.zig").Tilemap;
+const Tilemap = @import("tilemap.zig");
