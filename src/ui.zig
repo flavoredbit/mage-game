@@ -1,9 +1,4 @@
-pub fn drawDialog(char_name: []const u8, dialog: []const u8) void {
-    const start_x = 0;
-    const start_y = 7;
-    const end_x = 15;
-    const end_y = 11;
-
+fn drawBox(start_x: comptime_int, end_x: comptime_int, start_y: comptime_int, end_y: comptime_int) void {
     // dialog box texture 15-17 on x, 0-2 on y
     renderer.drawTile(.interface, @floatFromInt(start_x), @floatFromInt(start_y), 15, 0);
     renderer.drawTile(.interface, @floatFromInt(end_x), @floatFromInt(start_y), 17, 0);
@@ -30,6 +25,33 @@ pub fn drawDialog(char_name: []const u8, dialog: []const u8) void {
             renderer.drawTile(.interface, @floatFromInt(middle_x), @floatFromInt(middle_y), 16, 1);
         }
     }
+}
+
+pub fn drawChoice(choices: []const []const u8) void {
+    const start_x = 12;
+    const end_x = 15;
+    const start_y = 4;
+    const end_y = 6;
+
+    drawBox(start_x, end_x, start_y, end_y);
+
+    var text_start_x: f32 = start_x + 0.5;
+    var text_start_y: f32 = start_y + 0.5;
+    renderer.drawTileRotated(.interface, text_start_x, text_start_y, 5, 4, std.math.pi / 2.0);
+    text_start_x += 1.0;
+    for (choices) |choice| {
+        renderer.drawText(text_start_x, text_start_y, choice, false);
+        text_start_y += 1.0;
+    }
+}
+
+pub fn drawDialog(char_name: []const u8, dialog: []const u8) void {
+    const start_x = 0;
+    const start_y = 7;
+    const end_x = 15;
+    const end_y = 11;
+
+    drawBox(start_x, end_x, start_y, end_y);
 
     const text_start_x = start_x + 0.25;
     const text_start_y = start_y + 0.375;

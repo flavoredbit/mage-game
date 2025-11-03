@@ -1,5 +1,6 @@
 const Position = struct { x: f32, y: f32 };
 
+const Action = enum { talk, shoot };
 const Direction = enum { up, down, left, right };
 
 const MoveTo = struct {
@@ -8,15 +9,23 @@ const MoveTo = struct {
     progress: f32,
 };
 
+const Projectile = struct {
+    position: Position,
+    moving_to: MoveTo,
+};
+
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
 const game_state = struct {
     var is_moving: bool = false;
+    var is_firing: bool = false;
     var player_position: Position = .{ .x = 7.0, .y = 5.0 };
     var player_direction: Direction = .down;
+    var projectile: ?Projectile = null;
     var npc_position: Position = .{ .x = 10.0, .y = 5.0 };
     var move_input: ?Direction = null;
+    var action_input: ?Action = null;
     var moving_to: ?MoveTo = null;
     var tilemap: Tilemap = undefined;
 };
@@ -39,6 +48,7 @@ export fn input(e: ?*const sapp.Event) void {
     const event = e.?;
     if (event.type == .KEY_DOWN) {
         switch (event.key_code) {
+            .SPACE => game_state.action_input = .shoot,
             .K => blur_screen = true,
             .C => game_state.move_input = .up,
             .D => game_state.move_input = .down,
@@ -87,8 +97,42 @@ fn difference(a: Position, b: Position) f32 {
 export fn frame() void {
     rotation += std.math.pi / 32.0;
 
-    if (!game_state.is_moving) {
-        if (game_state.move_input) |move| {
+    if (!game_state.is_moving and !game_state.is_firing) {
+        if (game_state.action_input) |action| {
+            if (action == .shoot) {
+                var projectile_moving_to: MoveTo = .{
+                    .start = game_state.player_position,
+                    .end = game_state.player_position,
+                    .progress = 0.0,
+                };
+                switch (game_state.player_direction) {
+                    .up => {
+                        projectile_moving_to.start.y -= 1.0;
+                        projectile_moving_to.end.y -= 3.0;
+                    },
+                    .down => {
+                        projectile_moving_to.start.y += 1.0;
+                        projectile_moving_to.end.y += 3.0;
+                    },
+                    .left => {
+                        projectile_moving_to.start.x -= 1.0;
+                        projectile_moving_to.end.x -= 3.0;
+                    },
+                    .right => {
+                        projectile_moving_to.start.x += 1.0;
+                        projectile_moving_to.end.x += 3.0;
+                    },
+                }
+
+                game_state.projectile = .{
+                    .position = projectile_moving_to.start,
+                    .moving_to = projectile_moving_to,
+                };
+                game_state.action_input = null;
+                game_state.is_firing = true;
+                std.debug.print("Start shooting {}\n", .{game_state.projectile.?.position});
+            }
+        } else if (game_state.move_input) |move| {
             var moving_to: MoveTo = .{
                 .start = game_state.player_position,
                 .end = game_state.player_position,
@@ -127,6 +171,35 @@ export fn frame() void {
         if (moving_to.progress >= 1.0) {
             game_state.is_moving = false;
             game_state.moving_to = null;
+        }
+    } else if (game_state.is_firing or game_state.projectile != null) {
+        var projectile_position: *Position = &game_state.projectile.?.position;
+        var projectile_moving_to: *MoveTo = &game_state.projectile.?.moving_to;
+        projectile_moving_to.progress += 0.05;
+        projectile_position.x = lerp(
+            projectile_moving_to.start.x,
+            projectile_moving_to.end.x,
+            @min(projectile_moving_to.progress, 1.0),
+        );
+        projectile_position.y = lerp(
+            projectile_moving_to.start.y,
+            projectile_moving_to.end.y,
+            @mod(projectile_moving_to.progress, 1.0),
+        );
+
+        std.debug.print("Test collision with {}, {}\n", .{
+            @as(i32, @intFromFloat(@round(projectile_position.x))),
+            @as(i32, @intFromFloat(@round(projectile_position.y))),
+        });
+        const npc_distance = difference(projectile_position.*, game_state.npc_position);
+        if (npc_distance < 0.25) {
+            std.debug.print("Hit\n", .{});
+            game_state.is_firing = false;
+            game_state.projectile = null;
+        }
+        if (projectile_moving_to.progress >= 1.0) {
+            game_state.is_firing = false;
+            game_state.projectile = null;
         }
     }
 
@@ -191,6 +264,17 @@ export fn frame() void {
 
         if (flash_character) {
             ui.drawDialog("Test", "Text goes here");
+            const choices: [2][]const u8 = .{ "Yes", "No" };
+            ui.drawChoice(&choices);
+        }
+    }
+
+    if (game_state.projectile) |projectile| {
+        const animation_progress: i32 = @intFromFloat(@round(projectile.moving_to.progress * 4.0));
+        if (@rem(animation_progress, 2) == 0) {
+            renderer.drawTile(.tilemap, projectile.position.x, projectile.position.y, 16, 10);
+        } else {
+            renderer.drawTileRotated(.tilemap, projectile.position.x, projectile.position.y, 16, 6, std.math.pi / 4.0);
         }
     }
 }
