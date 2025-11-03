@@ -446,6 +446,56 @@ fn calculateSpriteVertices(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u3
     return vertices;
 }
 
+pub fn drawParticle(x: f32, y: f32, size: f32, tint_color: [4]f32) void {
+    const spritesheet_width: f32 = 288.0;
+    const spritesheet_height: f32 = 176.0;
+    const frame_u = @as(f32, @floatFromInt(1)) * tile_size / spritesheet_width;
+    const frame_v = @as(f32, @floatFromInt(1)) * tile_size / spritesheet_height;
+    const frame_w = tile_size / spritesheet_width;
+    const frame_h = tile_size / spritesheet_height;
+    var vertices: [4]SpriteVertex = undefined;
+
+    const point_offset = size / 2.0;
+    const start_x = x * tile_size - point_offset;
+    const end_x = x * tile_size + point_offset;
+    const start_y = y * tile_size - point_offset;
+    const end_y = y * tile_size + point_offset;
+    const tex_idx = @intFromEnum(Spritesheet.interface);
+
+    std.debug.print("{} {} {} {}\n", .{ start_x, end_x, start_y, end_y });
+
+    // Bottom-left
+    vertices[0] = .{
+        .pos = .{ start_x, end_y },
+        .uv = .{ frame_u, frame_v + frame_h },
+        .tint_color = tint_color,
+        .tex_idx = tex_idx,
+    };
+    // Bottom-right
+    vertices[1] = .{
+        .pos = .{ end_x, end_y },
+        .uv = .{ frame_u + frame_w, frame_v + frame_h },
+        .tint_color = tint_color,
+        .tex_idx = tex_idx,
+    };
+    // Top-left
+    vertices[2] = .{
+        .pos = .{ start_x, start_y },
+        .uv = .{ frame_u, frame_v },
+        .tint_color = tint_color,
+        .tex_idx = tex_idx,
+    };
+    // Top-right
+    vertices[3] = .{
+        .pos = .{ end_x, start_y },
+        .uv = .{ frame_u + frame_w, frame_v },
+        .tint_color = tint_color,
+        .tex_idx = tex_idx,
+    };
+    sprite_vertex_data[sprite_count * 4 ..][0..4].* = vertices;
+    sprite_count += 1;
+}
+
 const default_tint: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 };
 pub fn drawTile(spritesheet: Spritesheet, x: f32, y: f32, frame_x: u32, frame_y: u32) void {
     const vertices = calculateSpriteVertices(spritesheet, x, y, frame_x, frame_y, default_tint);

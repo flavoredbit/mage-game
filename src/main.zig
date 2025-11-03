@@ -14,20 +14,32 @@ const Projectile = struct {
     moving_to: MoveTo,
 };
 
+const Particle = struct {
+    alive: bool,
+    pos: Position,
+    vel: Position,
+    lifetime: f32,
+    size: f32,
+};
+
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
+var rand: std.Random = undefined;
 
 const game_state = struct {
     var is_moving: bool = false;
     var is_firing: bool = false;
     var player_position: Position = .{ .x = 7.0, .y = 5.0 };
-    var player_direction: Direction = .down;
+    var player_direction: Direction = .right;
     var projectile: ?Projectile = null;
     var npc_position: Position = .{ .x = 10.0, .y = 5.0 };
+    var npc_is_dead: bool = false;
     var move_input: ?Direction = null;
     var action_input: ?Action = null;
     var moving_to: ?MoveTo = null;
     var tilemap: Tilemap = undefined;
+    var particle_cooldown: f32 = 0.1;
+    var particles: [100]Particle = std.mem.zeroes([100]Particle);
 };
 
 export fn init() void {
@@ -193,7 +205,7 @@ export fn frame() void {
         });
         const npc_distance = difference(projectile_position.*, game_state.npc_position);
         if (npc_distance < 0.25) {
-            std.debug.print("Hit\n", .{});
+            game_state.npc_is_dead = true;
             game_state.is_firing = false;
             game_state.projectile = null;
         }
@@ -234,14 +246,80 @@ export fn frame() void {
             player_frame[1],
         );
     }
-    renderer.drawTileTinted(
-        .character,
-        game_state.npc_position.x,
-        game_state.npc_position.y,
-        24,
-        15,
-        .{ 1.0, 0.0, 1.0, 0.1 },
-    );
+
+    if (game_state.npc_is_dead) {
+        const dt = @as(f32, @floatCast(sapp.frameDuration()));
+        game_state.particle_cooldown -= dt;
+
+        if (game_state.particle_cooldown <= 0.0) {
+            game_state.particle_cooldown = 0.1;
+
+            var first_dead_index: usize = 0;
+            for (&game_state.particles, 0..) |*particle, i| {
+                if (!particle.alive) {
+                    first_dead_index = i;
+                    break;
+                }
+            }
+
+            const new_particle_count: usize = rand.intRangeAtMost(usize, 2, 5);
+            for (0..new_particle_count) |i| {
+                if (first_dead_index + i > 99) break;
+
+                const blood_direction: f32 = (rand.float(f32) - 0.5) * 2.0;
+                const blood_size = (rand.float(f32) * 2.0) + 1.0;
+                const blood_offset_x = (rand.float(f32) - 0.5) * 0.25;
+                const blood_offset_y = (rand.float(f32) - 0.5) * 0.25;
+                game_state.particles[first_dead_index + i] = .{
+                    .alive = true,
+                    .lifetime = 2.0,
+                    .pos = .{
+                        .x = game_state.npc_position.x + 0.5 + blood_offset_x,
+                        .y = game_state.npc_position.y + 0.5 + blood_offset_y,
+                    },
+                    .vel = .{ .x = blood_direction, .y = -3.0 },
+                    .size = blood_size,
+                };
+            }
+        }
+
+        renderer.drawTileTinted(
+            .character,
+            game_state.npc_position.x,
+            game_state.npc_position.y,
+            24,
+            15,
+            .{ 1.0, 0.2, 0.1, 0.5 },
+        );
+
+        for (&game_state.particles) |*particle| {
+            if (!particle.alive) continue;
+
+            particle.vel.y -= -2.0 * dt;
+            particle.pos.x += particle.vel.x * dt;
+            particle.pos.y += particle.vel.y * dt;
+            particle.lifetime -= dt;
+            if (particle.lifetime < 0.0) {
+                particle.alive = false;
+                continue;
+            } else {
+                renderer.drawParticle(
+                    particle.pos.x,
+                    particle.pos.y,
+                    particle.size,
+                    .{ 1.0, 0.2, 0.1, 1.0 },
+                );
+            }
+        }
+    } else {
+        renderer.drawTile(
+            .character,
+            game_state.npc_position.x,
+            game_state.npc_position.y,
+            24,
+            15,
+        );
+    }
 
     renderer.drawTileRotated(
         .character,
@@ -285,6 +363,18 @@ export fn cleanup() void {
 }
 
 pub fn main() !void {
+    var seed: u64 = undefined;
+    std.posix.getrandom(std.mem.asBytes(&seed)) catch |err| {
+        std.debug.print("Failed to get random seed: {}\n", .{err});
+        return;
+    };
+
+    var prng = std.Random.DefaultPrng.init(seed);
+    rand = prng.random();
+
+    const int_value = rand.intRangeAtMost(i32, 3, 10);
+    std.debug.print("Random value: {}\n", .{int_value});
+
     arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     allocator = arena.allocator();
 
